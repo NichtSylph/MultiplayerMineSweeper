@@ -20,6 +20,9 @@ public class Cell {
      * Constructor for Cell. Initializes the cell as not a mine, not flagged,
      * with zero neighboring mines, not revealed, and with no player who revealed
      * it.
+     *
+     *
+     *
      */
     public Cell() {
         this.isMine = false;
