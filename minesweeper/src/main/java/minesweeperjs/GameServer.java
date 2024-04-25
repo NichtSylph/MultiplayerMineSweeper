@@ -146,6 +146,19 @@ public class GameServer {
         broadcastMessage("GAME_STATE_UPDATE " + gameStateMessage);
     }
 
+    public synchronized void addPlayer(Socket clientSocket) {
+        Player newPlayer = new Player("Player " + playerCount.incrementAndGet());
+        players.add(newPlayer);
+
+        ClientHandler clientHandler = new ClientHandler(clientSocket, this, newPlayer);
+        clientHandlers.add(clientHandler);
+        new Thread(clientHandler).start();
+
+        // Send player number to client
+        newPlayer.setPlayerNumber(players.size() - 1);
+        clientHandler.sendMessage("PLAYER_NUMBER " + newPlayer.getPlayerNumber());
+    }
+
     public synchronized void playerReady(Player player) {
         if (!gameStarted) {
             player.setReady(true);
@@ -171,8 +184,10 @@ public class GameServer {
     }
 
     private void broadcastTurnChange() {
-        String currentPlayerName = players.get(currentPlayerIndex.get()).getName();
-        broadcastMessage("TURN_CHANGED " + currentPlayerName);
+        if (currentPlayerIndex.get() < players.size()) {
+            Player currentPlayer = players.get(currentPlayerIndex.get());
+            broadcastMessage("TURN_CHANGED " + currentPlayer.getName() + " " + currentPlayerIndex.get());
+        }
     }
 
     public synchronized void processPlayerMove(Player player, int x, int y) {
@@ -180,21 +195,27 @@ public class GameServer {
             sendToPlayer(player, "GAME_NOT_STARTED");
             return;
         }
-    
+
+        try {
+            Thread.sleep(1000); // Wait for 1 second
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
         if (!isPlayerTurn(player)) {
             sendToPlayer(player, "NOT_YOUR_TURN");
             return;
         }
-    
+
         // Now process the move since it is the correct player's turn
         boolean mineHit = gameBoard.revealCell(x, y, player);
-    
+
         // Handle if a mine is hit
         if (mineHit) {
             player.incrementScore(-1); // Assuming you want to decrement score on mine hit
             broadcastScoreUpdate(player);
             broadcastMessage("PLAYER_HIT_MINE " + player.getName());
-            
+
             if (gameBoard.getBombRevealedCount() >= MINES) {
                 endGame();
             } else {
@@ -290,10 +311,10 @@ public class GameServer {
         return sb.toString();
     }
 
-    private void switchTurns() {
+    public synchronized void switchTurns() {
         currentPlayerIndex.set((currentPlayerIndex.get() + 1) % players.size());
         Player nextPlayer = players.get(currentPlayerIndex.get());
-        broadcastMessage("TURN_CHANGED " + nextPlayer.getName());
+        broadcastMessage("TURN_CHANGED " + nextPlayer.getName() + " " + currentPlayerIndex.get());
     }
 
     public synchronized void handlePlayerQuit(Player player) {

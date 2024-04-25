@@ -92,6 +92,7 @@ public class GameWindow extends JFrame {
     }
 
     private void handleCellClick(int x, int y) {
+        System.out.println("Current player: " + this.currentPlayerNumber + ", Player number: " + this.playerNumber);
         if (this.currentPlayerNumber == this.playerNumber) {
             gameClient.sendPlayerMove(x, y);
             updateCellStateBasedOnPlayerAction(x, y);
@@ -105,22 +106,18 @@ public class GameWindow extends JFrame {
                 JOptionPane.INFORMATION_MESSAGE);
     }
 
-    public void handleTurnChange(String currentPlayerName) {
-        this.currentPlayerNumber = extractPlayerNumber(currentPlayerName);
-        boolean isMyTurn = this.playerNumber == this.currentPlayerNumber;
-        enableCellButtons(isMyTurn); // Make sure this call is correct
+    public void handleTurnChange(int currentPlayer) {
+        this.currentPlayerNumber = currentPlayer;
+        updateTurnStatus(this.playerNumber == this.currentPlayerNumber);
     }
 
-    private int extractPlayerNumber(String playerName) {
-        try {
-            String[] parts = playerName.split(" ");
-            if (parts.length > 1) {
-                return Integer.parseInt(parts[1]);
-            }
-        } catch (Exception e) {
-            System.err.println("Error extracting player number: " + e.getMessage());
+    private void updateTurnStatus(boolean isMyTurn) {
+        enableCellButtons(isMyTurn);
+        if (isMyTurn) {
+            JOptionPane.showMessageDialog(this, "It's your turn!", "Turn Info", JOptionPane.INFORMATION_MESSAGE);
+        } else {
+            JOptionPane.showMessageDialog(this, "Wait for your turn.", "Turn Info", JOptionPane.INFORMATION_MESSAGE);
         }
-        return -1;
     }
 
     public void enableReadyButton(boolean enabled) {
@@ -132,7 +129,6 @@ public class GameWindow extends JFrame {
     }
 
     public void displayGameOver() {
-        displayBestMoves(); // Call this when the game is over, especially after a loss
         JOptionPane.showMessageDialog(this, "Game Over, 5 mines were exploded!", "Game Over",
                 JOptionPane.INFORMATION_MESSAGE);
         System.exit(0);
@@ -190,37 +186,11 @@ public class GameWindow extends JFrame {
     }
 
     public void enableCellButtons(boolean enabled) {
-        for (CellButton[] cellRow : cellButtons) {
-            for (CellButton cell : cellRow) {
-                cell.setEnabled(enabled);
+        for (CellButton[] row : cellButtons) {
+            for (CellButton cellButton : row) {
+                cellButton.setEnabled(enabled);
             }
         }
-    }
-
-    public void displayBestMoves() {
-        // Begin analysis of each cell on the board
-        for (int y = 0; y < HEIGHT; y++) {
-            for (int x = 0; x < WIDTH; x++) {
-                CellButton button = cellButtons[y][x];
-                if (!button.isCellRevealed() && !button.isMarked()) {
-                    // Request the neighboring mines count from the GameClient
-                    gameClient.getNeighboringMinesCount(x, y, (responseX, responseY, count) -> {
-                        // This is a callback that will be called when the count is available
-                        if (count == 0) {
-                            // If there are no neighboring mines, it's generally safer to reveal
-                            SwingUtilities.invokeLater(() -> {
-                                displayBestMovesDialog("Reveal Cell at (" + responseX + ", " + responseY + ")");
-                            });
-                        }
-                    });
-                }
-            }
-        }
-        displayBestMovesDialog("Best moves calculated. Displaying...");
-    }
-
-    private void displayBestMovesDialog(String bestMove) {
-        JOptionPane.showMessageDialog(this, bestMove, "Best Moves", JOptionPane.INFORMATION_MESSAGE);
     }
 
     public void handleNeighboringMinesCountResponse(int x, int y, int count) {
@@ -228,11 +198,6 @@ public class GameWindow extends JFrame {
         CellButton cellButton = cellButtons[y][x];
         if (cellButton != null && !cellButton.isCellRevealed()) {
             cellButton.updateWithMinesCount(count);
-        }
-
-        // Logic to determine and display the best moves
-        if (count == 0) {
-            displayBestMovesDialog("Reveal Cell at (" + x + ", " + y + ")");
         }
     }
 

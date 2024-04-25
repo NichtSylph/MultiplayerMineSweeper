@@ -1,7 +1,5 @@
 package minesweeperjs;
 
-import java.util.concurrent.*;
-
 public class MoveEvaluator {
     private GameBoard gameBoard;
     private Player[] players;
@@ -13,52 +11,55 @@ public class MoveEvaluator {
         this.playerIndex = 0;
     }
 
-    public MoveResult evaluateMoveWithDepthAndParallelism(int x, int y, Player player, int depth, int parallelism) {
-        if (!gameBoard.isGameStarted() || !player.equals(players[playerIndex])) {
+    public MoveResult evaluateMove(int x, int y, Player player) {
+        // Ensure the move is being made by the current player and the game is started
+        if (!player.equals(players[playerIndex]) || !gameBoard.isGameStarted()) {
             return new MoveResult(false, false, player);
-        }
-
-        ExecutorService executor = Executors.newFixedThreadPool(parallelism);
-        try {
-            return recursiveEvaluate(x, y, player, depth, executor);
-        } finally {
-            executor.shutdown();
-            try {
-                if (!executor.awaitTermination(1, TimeUnit.HOURS)) {
-                    executor.shutdownNow();
-                }
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-            }
-        }
-    }
-
-    private MoveResult recursiveEvaluate(int x, int y, Player player, int depth, ExecutorService executor) {
-        if (depth == 0 || gameBoard.isGameOver()) {
-            return new MoveResult(true, false, player);
         }
 
         Cell cell = gameBoard.getCell(x, y);
-        if (cell == null || cell.isRevealed() || cell.isMine()) {
+        if (cell == null || cell.isRevealed()) {
             return new MoveResult(false, false, player);
         }
 
+        // Reveal the cell and check if it's a mine
         cell.setRevealed(true);
-        if (cell.getNeighboringMines() == 0) {
-            for (int dx = -1; dx <= 1; dx++) {
-                for (int dy = -1; dy <= 1; dy++) {
-                    if (dx != 0 || dy != 0) {
-                        int newX = x + dx;
-                        int newY = y + dy;
-                        executor.submit(() -> recursiveEvaluate(newX, newY, player, depth - 1, executor));
+        boolean isMine = cell.isMine();
+        if (isMine) {
+            gameBoard.setGameOver(true);
+        } else {
+            // If the cell is not a mine, recursively reveal adjacent cells if it has zero
+            // neighboring mines
+            if (cell.getNeighboringMines() == 0) {
+                revealAdjacentCells(x, y);
+            }
+        }
+
+        return new MoveResult(true, isMine, player);
+    }
+
+    private void revealAdjacentCells(int x, int y) {
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                if (dx != 0 || dy != 0) {
+                    int newX = x + dx;
+                    int newY = y + dy;
+                    if (isValidCell(newX, newY)) {
+                        Cell adjacentCell = gameBoard.getCell(newX, newY);
+                        if (!adjacentCell.isRevealed() && !adjacentCell.isMine()) {
+                            adjacentCell.setRevealed(true);
+                            if (adjacentCell.getNeighboringMines() == 0) {
+                                revealAdjacentCells(newX, newY);
+                            }
+                        }
                     }
                 }
             }
         }
+    }
 
-        // If we've reached here, it means the move was valid and the cell was not a
-        // mine.
-        return new MoveResult(true, false, player);
+    private boolean isValidCell(int x, int y) {
+        return x >= 0 && y >= 0 && x < gameBoard.getWidth() && y < gameBoard.getHeight();
     }
 
     public static class MoveResult {

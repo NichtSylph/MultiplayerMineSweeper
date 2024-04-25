@@ -47,9 +47,13 @@ public class CellButton extends JButton {
         });
     }
 
-    private void revealCellAction() {
-        if (gameClient.getCurrentPlayerNumber() == gameClient.getPlayerNumber() && !isRevealed) {
+    public void revealCellAction() {
+        System.out.println("Attempting to reveal cell: Player " + gameClient.getPlayerNumber() +
+                ", Current player: " + gameClient.getCurrentPlayerNumber());
+        if (gameClient.getCurrentPlayerNumber() == gameClient.getPlayerNumber() && !isRevealed && !isMarked) {
             gameClient.sendPlayerMove(x, y);
+        } else {
+            JOptionPane.showMessageDialog(this, "It's not your turn!", "Turn Info", JOptionPane.INFORMATION_MESSAGE);
         }
     }
 

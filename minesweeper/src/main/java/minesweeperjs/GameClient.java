@@ -84,6 +84,16 @@ public class GameClient {
     }
 
     public void sendPlayerMove(int x, int y) {
+        if (!gameStarted) {
+            JOptionPane.showMessageDialog(gameWindow, "The game has not started.", "Wait",
+                    JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        if (currentPlayerNumber != playerNumber) {
+            JOptionPane.showMessageDialog(gameWindow, "It's not your turn!", "Turn Info",
+                    JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
         sendMessage("MOVE " + x + " " + y);
     }
 
@@ -176,16 +186,16 @@ public class GameClient {
                     SwingUtilities.invokeLater(() -> gameWindow.updatePlayerCount(playerCount));
                     break;
                 case "TURN_CHANGED":
-                    currentPlayerNumber = extractPlayerNumber(parts[1]);
-                    SwingUtilities.invokeLater(() -> gameWindow.handleTurnChange(parts[1]));
+                    this.currentPlayerNumber = Integer.parseInt(parts[2]);
+                    System.out.println("Turn changed to player: " + this.currentPlayerNumber);
                     break;
                 case "NOT_YOUR_TURN":
                     SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(gameWindow,
                             "It's not your turn yet!", "Wait", JOptionPane.INFORMATION_MESSAGE));
                     break;
                 case "PLAYER_NUMBER":
-                    playerNumber = parts.length > 1 && isNumeric(parts[1]) ? Integer.parseInt(parts[1]) : playerNumber;
-                    SwingUtilities.invokeLater(() -> gameWindow.updatePlayerNumber(playerNumber));
+                    this.playerNumber = Integer.parseInt(parts[1]);
+                    System.out.println("Assigned player number: " + this.playerNumber);
                     break;
                 case "CELL_STATE":
                     if (gameStarted) {
@@ -220,31 +230,6 @@ public class GameClient {
         } catch (NumberFormatException e) {
             System.err.println("Error parsing server message: " + e.getMessage());
         }
-    }
-
-    private boolean isNumeric(String str) {
-        try {
-            Integer.parseInt(str);
-            return true;
-        } catch (NumberFormatException e) {
-            return false;
-        }
-    }
-
-    private int extractPlayerNumber(String playerName) {
-        if (playerName == null || playerName.isEmpty()) {
-            return -1; // Return an invalid number if the string is null or empty
-        }
-        try {
-            // Assuming the player number is at the end of the string after a space
-            String[] parts = playerName.split(" ");
-            if (parts.length > 1) {
-                return Integer.parseInt(parts[parts.length - 1]);
-            }
-        } catch (NumberFormatException e) {
-            System.err.println("Error extracting player number: " + e.getMessage());
-        }
-        return -1; // Return an invalid number if parsing fails
     }
 
     private void handleGameState(String gameState) {
@@ -303,8 +288,7 @@ public class GameClient {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             GameClient client = new GameClient();
-            client.joinFrame.setVisible(true); // Show the join frame
+            client.joinFrame.setVisible(true);
         });
     }
-
 }
