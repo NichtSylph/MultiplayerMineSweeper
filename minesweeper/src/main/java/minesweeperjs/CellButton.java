@@ -10,6 +10,7 @@ public class CellButton extends JButton {
     private final int x; // X-coordinate of the cell
     private final int y; // Y-coordinate of the cell
     private GameClient gameClient; // Reference to the game client
+    private Cell cell; // The cell this button represents
     private static final ImageIcon mineIcon = new ImageIcon(CellButton.class.getResource("/mineicon.png"));
     private static final ImageIcon flagIcon = new ImageIcon(CellButton.class.getResource("/flagicon.png"));
     private static final ImageIcon[] numberIcons = {
@@ -17,15 +18,15 @@ public class CellButton extends JButton {
             new ImageIcon(CellButton.class.getResource("/iconNumber2.png")),
             new ImageIcon(CellButton.class.getResource("/iconNumber3.png")),
     };
-    private boolean isMarked; // Flag for marking the cell
-    private boolean isRevealed; // Flag for revealing the cell
 
-    public CellButton(int x, int y, GameClient gameClient) {
+    public CellButton(int x, int y, GameClient gameClient, Cell cell) {
+        if (gameClient == null) {
+            throw new IllegalArgumentException("gameClient cannot be null");
+        }
         this.x = x;
         this.y = y;
         this.gameClient = gameClient;
-        this.isMarked = false;
-        this.isRevealed = false;
+        this.cell = cell;
         setPreferredSize(new Dimension(32, 32));
         setBackground(Color.LIGHT_GRAY);
         setOpaque(true);
@@ -35,7 +36,7 @@ public class CellButton extends JButton {
         addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (isRevealed)
+                if (cell.isRevealed())
                     return; // Ignore clicks if the cell is revealed
 
                 if (e.getButton() == MouseEvent.BUTTON3) { // Right-click
@@ -48,29 +49,50 @@ public class CellButton extends JButton {
     }
 
     public void revealCellAction() {
-        System.out.println("Attempting to reveal cell: Player " + gameClient.getPlayerNumber() +
-                ", Current player: " + gameClient.getCurrentPlayerNumber());
-        if (gameClient.getCurrentPlayerNumber() == gameClient.getPlayerNumber() && !isRevealed && !isMarked) {
+        if (!gameClient.isGameStarted()) {
+            JOptionPane.showMessageDialog(this, "The game has not started yet. Please press the Ready button.", "IDLE", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+    
+        Player currentPlayer = gameClient.getCurrentPlayer();
+        System.out.println("Attempting to reveal cell: Player " + currentPlayer.getPlayerNumber() +
+                ", Current player: " + gameClient.getCurrentPlayer().getPlayerNumber());
+        if (currentPlayer.isCurrentTurn() && !cell.isRevealed() && !cell.isFlagged()) {
             gameClient.sendPlayerMove(x, y);
-        } else {
-            JOptionPane.showMessageDialog(this, "It's not your turn!", "Turn Info", JOptionPane.INFORMATION_MESSAGE);
+            currentPlayer.incrementScore(10);
+            // Update the cell's state
+            cell.setRevealed(true);
+            // Reveal the cell in the UI
+            revealCell(cell.isMine(), cell.getNeighboringMines());
+        } else if (!currentPlayer.isCurrentTurn()) {
+            JOptionPane.showMessageDialog(this, "Wait for your turn, Player " + currentPlayer.getPlayerNumber() + "!", "Turn Info", JOptionPane.INFORMATION_MESSAGE);
         }
     }
 
     private void toggleFlag() {
-        if (isRevealed)
+        if (!gameClient.isGameStarted()) {
+            JOptionPane.showMessageDialog(this, "The game has not started yet. Please press the Ready button.", "IDLE", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+    
+        if (cell.isRevealed())
             return; // Ignore flagging if the cell is revealed
-
-        isMarked = !isMarked;
-        setIcon(isMarked ? flagIcon : null);
-        setBackground(isMarked ? Color.YELLOW : Color.LIGHT_GRAY);
-        gameClient.sendFlagChange(x, y, isMarked);
+    
+        cell.setFlagged(!cell.isFlagged());
+        setIcon(cell.isFlagged() ? flagIcon : null);
+        setBackground(cell.isFlagged() ? Color.YELLOW : Color.LIGHT_GRAY);
+        gameClient.sendFlagChange(x, y, cell.isFlagged());
+        if (cell.isFlagged()) {
+            gameClient.getCurrentPlayer().incrementScore(2); // Increment score when a flag is placed
+        } else {
+            gameClient.getCurrentPlayer().incrementScore(-2); // Decrement score when a flag is removed
+        }
     }
 
     public void revealCell(boolean isMine, int neighboringMines) {
+        cell.setRevealed(true);
         setEnabled(false); // Disable the button
         setBackground(Color.WHITE); // Set the background to indicate reveal
-        this.isRevealed = true; // Set the revealed flag
 
         if (isMine) {
             setIcon(mineIcon);
@@ -79,57 +101,40 @@ public class CellButton extends JButton {
         }
     }
 
-    public void setMarked(boolean isMarked) {
-        this.isMarked = isMarked;
-        // Update the icon and background based on the new flag status
-        setIcon(isMarked ? flagIcon : null);
-        setBackground(isMarked ? Color.YELLOW : Color.LIGHT_GRAY);
-    }
-
-    public boolean isMarked() {
-        return isMarked;
-    }
-
-    public void setCellRevealed(boolean isRevealed) {
-        this.isRevealed = isRevealed;
-        setEnabled(!isRevealed);
-    }
-
-    public boolean isCellRevealed() {
-        return isRevealed;
-    }
-
     public void resetState() {
+        cell.setRevealed(false);
+        cell.setFlagged(false);
         setIcon(null);
         setBackground(Color.LIGHT_GRAY);
         setEnabled(true);
-        isRevealed = false;
     }
 
     public void revealWithoutMine() {
+        cell.setRevealed(true);
         setIcon(null);
         setBackground(Color.WHITE);
         setEnabled(false);
-        isRevealed = true;
     }
 
     public void revealWithMine() {
+        cell.setRevealed(true);
         setIcon(mineIcon);
         setBackground(Color.RED);
         setEnabled(false);
-        isRevealed = true;
     }
 
     public void updateWithMinesCount(int count) {
-        // Check if the cell is already revealed
-        if (!isRevealed) {
+        if (!cell.isRevealed()) {
             if (count > 0 && count <= numberIcons.length) {
                 setIcon(numberIcons[count - 1]); // Arrays are 0-indexed, so subtract 1
             } else {
-                // If count is 0 or beyond range, clear the icon
                 setIcon(null);
             }
         }
+    }
+
+    public Cell getCell() {
+        return this.cell;
     }
 
     private ImageIcon getNumberIcon(int number) {

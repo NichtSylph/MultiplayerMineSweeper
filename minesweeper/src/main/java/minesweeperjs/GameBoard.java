@@ -47,6 +47,25 @@ public class GameBoard {
         }
     }
 
+    public boolean toggleFlag(int x, int y, boolean isFlagged, Player player) {
+        if (x < 0 || x >= width || y < 0 || y >= height || gameOver) {
+            return false; // Cell is out of bounds or game is over
+        }
+    
+        Cell cell = cells[y][x];
+        if (cell.isRevealed()) {
+            return false; // Can't flag a cell that's already revealed
+        }
+    
+        // Check if it's the player's turn
+        if (player != null && !player.isCurrentTurn()) {
+            return false; // It's not the player's turn
+        }
+    
+        cell.setFlagged(isFlagged);
+        
+        return true;
+    }
     private void calculateNeighboringMines() {
         for (int i = 0; i < height; i++) {
             for (int j = 0; j < width; j++) {
@@ -54,15 +73,6 @@ public class GameBoard {
                     int mines = countAdjacentMines(j, i);
                     cells[i][j].setNeighboringMines(mines);
                 }
-            }
-        }
-    }
-
-    public void toggleFlag(int x, int y, boolean isFlagged) {
-        if (x >= 0 && x < width && y >= 0 && y < height) {
-            Cell cell = cells[y][x];
-            if (!cell.isRevealed()) { // Prevent flagging of already revealed cells
-                cell.setFlagged(isFlagged);
             }
         }
     }
@@ -129,7 +139,7 @@ public class GameBoard {
     }
 
     public MoveEvaluator.MoveResult evaluateMove(int x, int y, Player player) {
-        return moveEvaluator.evaluateMove(x, y, player); // Direct call without threading
+        return moveEvaluator.evaluateMove(x, y, player);
     }
 
     public void startGame() {
@@ -148,25 +158,11 @@ public class GameBoard {
         return gameOver;
     }
 
-    public void reset() {
-        initializeCells();
-        placeMines();
-        calculateNeighboringMines();
-        gameStarted = false;
-        gameOver = false;
-        bombRevealedCount = 0;
-    }
-
     public Cell getCell(int x, int y) {
         if (x < 0 || x >= width || y < 0 || y >= height) {
             return null;
         }
         return cells[y][x];
-    }
-
-    public int incrementBombCount() {
-        bombRevealedCount++;
-        return bombRevealedCount;
     }
 
     public int getBombRevealedCount() {
@@ -186,22 +182,7 @@ public class GameBoard {
     }
 
     public int getNeighboringMinesCount(int x, int y) {
-        if (x < 0 || x >= width || y < 0 || y >= height) {
-            return 0; // Out of bounds
-        }
-
-        int minesCount = 0;
-        for (int i = -1; i <= 1; i++) {
-            for (int j = -1; j <= 1; j++) {
-                int adjX = x + j;
-                int adjY = y + i;
-                if (adjX >= 0 && adjX < width && adjY >= 0 && adjY < height && cells[adjY][adjX].isMine()) {
-                    minesCount++;
-                }
-            }
-        }
-
-        return minesCount;
+        return countAdjacentMines(x, y);
     }
 
     public int getWidth() {

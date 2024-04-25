@@ -22,8 +22,8 @@ public class ClientHandler implements Runnable {
             out = new PrintWriter(clientSocket.getOutputStream(), true);
             in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         } catch (IOException e) {
-            System.err.println("Error initializing streams: " + e.getMessage());
-            closeConnection(); // Close connection if streams can't be initialized
+            System.err.println("Error initializing streams for " + player.getName() + ": " + e.getMessage());
+            closeConnection();
         }
     }
 
@@ -37,14 +37,13 @@ public class ClientHandler implements Runnable {
             String inputLine;
             while ((inputLine = in.readLine()) != null) {
                 if (!interpretClientMessage(inputLine)) {
-                    break; // Break loop if interpretation signals to stop
+                    break; // Interpretation signaled to end the connection
                 }
             }
         } catch (IOException e) {
-            System.err.println("Client disconnected: " + e.getMessage());
-            server.handlePlayerQuit(player);
+            System.err.println("Error with client " + player.getName() + " connection: " + e.getMessage());
         } finally {
-            server.removeClientHandler(this);
+            server.handlePlayerQuit(player);
             closeConnection();
         }
     }
@@ -52,7 +51,7 @@ public class ClientHandler implements Runnable {
     private boolean interpretClientMessage(String inputLine) {
         String[] parts = inputLine.split(" ");
         if (parts.length == 0) {
-            return false; // Empty message, terminate connection
+            return false;
         }
 
         try {
@@ -63,9 +62,6 @@ public class ClientHandler implements Runnable {
                 case "FLAG":
                     handleFlagCommand(parts);
                     break;
-                case "REQUEST_CELL_STATE":
-                    handleRequestCellStateCommand(parts);
-                    break;
                 case "READY":
                     server.playerReady(player);
                     break;
@@ -73,49 +69,50 @@ public class ClientHandler implements Runnable {
                     handleRequestNeighboringMinesCount(parts);
                     break;
                 default:
-                    System.err.println("Unknown command from client: " + parts[0]);
+                    System.err.println("Received unknown command: " + parts[0]);
                     break;
             }
-        } catch (NumberFormatException e) {
-            System.err.println("Error parsing numeric values from client message: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("Error handling command from client: " + e.getMessage());
         }
 
         return true;
     }
 
     private void handleMoveCommand(String[] parts) {
-        int x = Integer.parseInt(parts[1]);
-        int y = Integer.parseInt(parts[2]);
-        if (!server.isPlayerTurn(this.player)) {
-            sendMessage("NOT_YOUR_TURN");
+        if (!server.getGameBoard().isGameStarted()) {
+            sendMessage("GAME_NOT_STARTED");
             return;
         }
-        server.processPlayerMove(this.player, x, y);
+        int x = Integer.parseInt(parts[1]);
+        int y = Integer.parseInt(parts[2]);
+        if (server.isPlayerTurn(player)) {
+            server.processPlayerMove(player, x, y);
+        } else {
+            sendMessage("NOT_YOUR_TURN");
+        }
     }
 
     private void handleFlagCommand(String[] parts) {
-        if (parts.length == 4) {
-            int x = Integer.parseInt(parts[1]);
-            int y = Integer.parseInt(parts[2]);
-            boolean isFlagged = parts[3].equals("1");
-            server.toggleFlag(x, y, isFlagged, player);
+        if (!server.getGameBoard().isGameStarted()) {
+            sendMessage("GAME_NOT_STARTED");
+            return;
         }
-    }
-
-    private void handleRequestCellStateCommand(String[] parts) {
-        if (parts.length == 3) {
-            int x = Integer.parseInt(parts[1]);
-            int y = Integer.parseInt(parts[2]);
-            server.requestCellState(this, x, y);
+        int x = Integer.parseInt(parts[1]);
+        int y = Integer.parseInt(parts[2]);
+        boolean isFlagged = parts[3].equals("1");
+        if (server.isPlayerTurn(player)) {
+            server.toggleFlag(x, y, isFlagged, player);
+        } else {
+            sendMessage("NOT_YOUR_TURN");
         }
     }
 
     private void handleRequestNeighboringMinesCount(String[] parts) {
-        if (parts.length == 3) {
-            int x = Integer.parseInt(parts[1]);
-            int y = Integer.parseInt(parts[2]);
-            server.handleNeighboringMinesCountRequest(this, x, y);
-        }
+        int x = Integer.parseInt(parts[1]);
+        int y = Integer.parseInt(parts[2]);
+        int count = server.getGameBoard().getNeighboringMinesCount(x, y);
+        sendMessage("NEIGHBORING_MINES_COUNT_RESPONSE " + x + " " + y + " " + count);
     }
 
     public void sendMessage(String message) {
@@ -124,24 +121,13 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    public void notifyPlayerQuit(String playerName) {
-        sendMessage("PLAYER_QUIT " + playerName);
-    }
-
-    public void notifyServerClosing() {
-        sendMessage("SERVER_CLOSING");
-    }
-
     public void closeConnection() {
         try {
-            if (out != null)
-                out.close();
-            if (in != null)
-                in.close();
-            if (clientSocket != null && !clientSocket.isClosed())
-                clientSocket.close();
+            if (out != null) out.close();
+            if (in != null) in.close();
+            if (clientSocket != null && !clientSocket.isClosed()) clientSocket.close();
         } catch (IOException e) {
-            System.err.println("Error closing client connection: " + e.getMessage());
+            System.err.println("Error closing connection for " + player.getName() + ": " + e.getMessage());
         }
     }
 }

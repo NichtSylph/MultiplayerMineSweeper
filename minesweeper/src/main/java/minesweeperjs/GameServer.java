@@ -1,16 +1,22 @@
 package minesweeperjs;
 
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import java.awt.BorderLayout;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import javax.swing.JButton;
+import javax.swing.JPanel;
+import java.awt.Font;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 
 public class GameServer {
     private int port;
@@ -22,12 +28,9 @@ public class GameServer {
     private AtomicInteger currentPlayerIndex;
     private List<Player> players;
     private AtomicInteger readyPlayers;
-    private AtomicInteger playerCount;
     private static final int WIDTH = 16;
     private static final int HEIGHT = 16;
     private static final int MINES = 32;
-    private JFrame frame;
-    private JLabel serverStatusLabel;
 
     public GameServer(int port) {
         this.port = port;
@@ -37,64 +40,35 @@ public class GameServer {
         currentPlayerIndex = new AtomicInteger(0);
         readyPlayers = new AtomicInteger(0);
         gameStarted = false;
-        playerCount = new AtomicInteger(0);
         isRunning = true;
-        initializeGUI();
-    }
-
-    private void initializeGUI() {
-        frame = new JFrame("Minesweeper Server");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(300, 150);
-        frame.setLayout(new BorderLayout());
-
-        serverStatusLabel = new JLabel("Server not running", SwingConstants.CENTER);
-        frame.add(serverStatusLabel, BorderLayout.CENTER);
-
-        JButton closeButton = new JButton("Close Server");
-        closeButton.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                stopServer();
-            }
-        });
-        frame.add(closeButton, BorderLayout.SOUTH);
-
-        frame.setVisible(true);
     }
 
     public void startServer() {
         try {
             serverSocket = new ServerSocket(port);
-            String serverStatusText = "Server running on IP: " + InetAddress.getLocalHost().getHostAddress() + " Port: "
-                    + port;
-            serverStatusLabel.setText(serverStatusText);
 
             new Thread(() -> {
                 while (isRunning) {
                     try {
                         Socket clientSocket = serverSocket.accept();
-                        String clientAddress = clientSocket.getInetAddress().getHostAddress();
-                        System.out.println("Client connected: " + clientAddress);
-
-                        synchronized (this) {
-                            Player newPlayer = new Player("Player " + playerCount.incrementAndGet());
-                            players.add(newPlayer);
-
-                            ClientHandler clientHandler = new ClientHandler(clientSocket, this, newPlayer);
-                            clientHandlers.add(clientHandler);
-                            new Thread(clientHandler).start();
-                        }
-
-                        broadcastPlayerCount();
+                        addPlayer(clientSocket);
                     } catch (IOException e) {
-                        System.err.println("Error accepting client connection: " + e.getMessage());
+                        if (!serverSocket.isClosed()) {
+                            System.out.println("Error accepting client connection: " + e.getMessage());
+                        }
                     }
                 }
             }).start();
         } catch (IOException e) {
-            serverStatusLabel.setText("Error: " + e.getMessage());
-            System.err.println("Error creating server socket: " + e.getMessage());
+            System.out.println("Error starting server: " + e.getMessage());
         }
+    }
+
+    public void stopServer() {
+        isRunning = false;
+        clientHandlers.forEach(ClientHandler::closeConnection);
+        closeServerSocket();
+        System.exit(0);
     }
 
     private void closeServerSocket() {
@@ -103,91 +77,51 @@ public class GameServer {
                 serverSocket.close();
             }
         } catch (IOException e) {
-            System.err.println("Error closing server socket: " + e.getMessage());
+            System.out.println("Error closing server socket: " + e.getMessage());
         }
-    }
-
-    public void stopServer() {
-        // Notify clients that the server is closing before shutting down
-        broadcastMessage("SERVER_CLOSING");
-
-        // Close all client connections gracefully
-        for (ClientHandler clientHandler : clientHandlers) {
-            clientHandler.notifyServerClosing();
-            clientHandler.closeConnection();
-        }
-
-        // Stop the server and close the server socket
-        isRunning = false;
-        closeServerSocket();
-
-        // Give the server a moment to send all messages before exiting
-        try {
-            Thread.sleep(1000); // Wait for 1 second
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-
-        System.exit(0);
-    }
-
-    private void broadcastMessage(String message) {
-        for (ClientHandler clientHandler : clientHandlers) {
-            clientHandler.sendMessage(message);
-        }
-    }
-
-    public void broadcastPlayerCount() {
-        broadcastMessage("PLAYERS_CONNECTED " + players.size());
-    }
-
-    private void broadcastUpdatedGameState() {
-        String gameStateMessage = createGameStateMessage();
-        broadcastMessage("GAME_STATE_UPDATE " + gameStateMessage);
     }
 
     public synchronized void addPlayer(Socket clientSocket) {
-        Player newPlayer = new Player("Player " + playerCount.incrementAndGet());
+        Player newPlayer = new Player("Player " + (players.size() + 1));
         players.add(newPlayer);
-
         ClientHandler clientHandler = new ClientHandler(clientSocket, this, newPlayer);
         clientHandlers.add(clientHandler);
         new Thread(clientHandler).start();
-
-        // Send player number to client
+    
         newPlayer.setPlayerNumber(players.size() - 1);
         clientHandler.sendMessage("PLAYER_NUMBER " + newPlayer.getPlayerNumber());
+        clientHandler.sendMessage("WELCOME Welcome to Lobby, you are Player Number " + newPlayer.getPlayerNumber());
+        broadcastPlayerCount();
+    }
+
+    private void broadcastPlayerCount() {
+        broadcastMessage("PLAYERS_CONNECTED " + players.size());
     }
 
     public synchronized void playerReady(Player player) {
-        if (!gameStarted) {
-            player.setReady(true);
-            readyPlayers.incrementAndGet();
-            if (readyPlayers.get() == players.size()) {
-                startGame();
-            }
+        if (!gameStarted && readyPlayers.incrementAndGet() == players.size()) {
+            startGame();
+        } else if (!gameStarted && players.size() > 1) {
+            sendToPlayer(player, "WAITING_FOR_PLAYERS");
         }
     }
 
-    private void broadcastGameStarted() {
-        broadcastMessage("GAME_STARTED");
-    }
-
-    public synchronized void startGame() {
-        if (!gameStarted && readyPlayers.get() == players.size()) {
+    private void startGame() {
+        if (!gameStarted) {
             gameStarted = true;
-            currentPlayerIndex.set(0); // Starting with the first player
-            gameBoard.reset();
-            broadcastGameStarted();
-            broadcastTurnChange(); // Ensure clients are ready before this is called
+            broadcastMessage("GAME_STARTED");
+            gameBoard.startGame();
+            currentPlayerIndex.set(0);
+            broadcastTurnChange();
         }
     }
 
     private void broadcastTurnChange() {
-        if (currentPlayerIndex.get() < players.size()) {
-            Player currentPlayer = players.get(currentPlayerIndex.get());
-            broadcastMessage("TURN_CHANGED " + currentPlayer.getName() + " " + currentPlayerIndex.get());
-        }
+        broadcastMessage("TURN_CHANGED " + currentPlayerIndex.get());
+    }
+
+    private void broadcastMessage(String message) {
+        clientHandlers.forEach(handler -> handler.sendMessage(message));
     }
 
     public synchronized void processPlayerMove(Player player, int x, int y) {
@@ -195,166 +129,117 @@ public class GameServer {
             sendToPlayer(player, "GAME_NOT_STARTED");
             return;
         }
-
-        try {
-            Thread.sleep(1000); // Wait for 1 second
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-
+    
         if (!isPlayerTurn(player)) {
             sendToPlayer(player, "NOT_YOUR_TURN");
             return;
         }
-
-        // Now process the move since it is the correct player's turn
-        boolean mineHit = gameBoard.revealCell(x, y, player);
-
-        // Handle if a mine is hit
-        if (mineHit) {
-            player.incrementScore(-1); // Assuming you want to decrement score on mine hit
-            broadcastScoreUpdate(player);
-            broadcastMessage("PLAYER_HIT_MINE " + player.getName());
-
-            if (gameBoard.getBombRevealedCount() >= MINES) {
-                endGame();
-            } else {
-                switchTurns();
-            }
-        } else {
-            // Handle if a mine is not hit
-            Cell cell = gameBoard.getCell(x, y);
-            if (cell != null && !cell.isMine()) {
-                int scoreIncrement = cell.getNeighboringMines();
-                if (scoreIncrement > 0) {
-                    player.incrementScore(scoreIncrement);
-                    broadcastScoreUpdate(player); // Broadcast score update
-                }
-            }
-            if (gameBoard.allNonMineCellsRevealed()) {
-                broadcastMessage("GAME_WON");
-                endGame();
-            } else {
-                switchTurns();
-            }
+    
+        if (gameBoard.revealCell(x, y, player)) {
+            checkGameOver();
         }
+       
+        sendToPlayer(player, "MOVE_RESULT " + x + " " + y + " " + (gameBoard.getCell(x, y).isRevealed() ? "1" : "0"));
         broadcastUpdatedGameState();
+    }   
+
+    private void checkGameOver() {
+        if (gameBoard.getBombRevealedCount() >= MINES) {
+            broadcastMessage("GAMEOVER");
+            stopServer();
+        } else {
+            switchTurns();
+        }
+    }
+
+    private void switchTurns() {
+        currentPlayerIndex.incrementAndGet();
+        currentPlayerIndex.set(currentPlayerIndex.get() % players.size());
+        broadcastTurnChange();
     }
 
     private void sendToPlayer(Player player, String message) {
         clientHandlers.stream()
-                .filter(handler -> handler.getPlayer().equals(player))
+                .filter(h -> h.getPlayer().equals(player))
                 .findFirst()
-                .ifPresent(handler -> handler.sendMessage(message));
+                .ifPresent(h -> h.sendMessage(message));
     }
 
-    private void endGame() {
-        gameStarted = false;
-        broadcastMessage("GAMEOVER");
-        updateAndBroadcastGameState();
-
-        for (ClientHandler clientHandler : clientHandlers) {
-            clientHandler.closeConnection();
-        }
-
-        try {
-            Thread.sleep(5000);
-        } catch (InterruptedException e) {
-            System.err.println("Interrupted while waiting to stop server: " + e.getMessage());
-        }
-
-        stopServer();
-    }
-
-    public void sendCellState(ClientHandler clientHandler, int x, int y) {
-        Cell cell = gameBoard.getCell(x, y);
-        if (cell != null) {
-            int cellState = cell.isRevealed() ? (cell.isMine() ? 2 : 1) : 0;
-            int neighboringMines = cell.isRevealed() ? cell.getNeighboringMines() : -1;
-            clientHandler.sendMessage("CELL_STATE " + x + " " + y + " " + cellState + " " + neighboringMines);
-        }
-    }
-
-    public void requestCellState(ClientHandler clientHandler, int x, int y) {
-        int neighboringMines = gameBoard.getNeighboringMinesCount(x, y);
-        // You can now use this count to send back a response to the client
-        clientHandler.sendMessage("CELL_STATE " + x + " " + y + " " + neighboringMines);
-    }
-
-    private void updateAndBroadcastGameState() {
-        String gameStateMessage = createGameStateMessage();
-        broadcastMessage("UPDATE " + gameStateMessage);
-    }
-
-    private void broadcastScoreUpdate(Player player) {
-        for (ClientHandler clientHandler : clientHandlers) {
-            if (clientHandler.getPlayer().equals(player)) {
-                clientHandler.sendMessage("SCORE_UPDATE " + player.getScore());
-            }
-        }
-    }
-
-    public synchronized void toggleFlag(int x, int y, boolean isFlagged, Player player) {
-        gameBoard.toggleFlag(x, y, isFlagged);
-        updateAndBroadcastGameState();
+    private void broadcastUpdatedGameState() {
+        String state = createGameStateMessage();
+        broadcastMessage("GAME_STATE_UPDATE " + state);
     }
 
     private String createGameStateMessage() {
         StringBuilder sb = new StringBuilder();
-        for (int y = 0; y < gameBoard.getHeight(); y++) {
-            for (int x = 0; x < gameBoard.getWidth(); x++) {
+        for (int y = 0; y < HEIGHT; y++) {
+            for (int x = 0; x < WIDTH; x++) {
                 Cell cell = gameBoard.getCell(x, y);
-                int cellState = cell.isRevealed() ? (cell.isMine() ? 2 : 1) : (cell.isFlagged() ? 3 : 0);
-                sb.append(x).append(",").append(y).append(",").append(cellState).append(";");
+                int state = cell.isRevealed() ? (cell.isMine() ? 2 : 1) : (cell.isFlagged() ? 3 : 0);
+                sb.append(x).append(",").append(y).append(",").append(state).append(";");
             }
         }
         return sb.toString();
     }
 
-    public synchronized void switchTurns() {
-        currentPlayerIndex.set((currentPlayerIndex.get() + 1) % players.size());
-        Player nextPlayer = players.get(currentPlayerIndex.get());
-        broadcastMessage("TURN_CHANGED " + nextPlayer.getName() + " " + currentPlayerIndex.get());
-    }
-
-    public synchronized void handlePlayerQuit(Player player) {
+    public void handlePlayerQuit(Player player) {
         players.remove(player);
         clientHandlers.removeIf(handler -> handler.getPlayer().equals(player));
-        broadcastMessage("PLAYER_QUIT " + player.getName());
         broadcastPlayerCount();
-        if (players.isEmpty()) {
-            broadcastMessage("SERVER_CLOSING");
-            stopServer();
+    }
+
+    public GameBoard getGameBoard() {
+        return gameBoard;
+    }
+
+    public void toggleFlag(int x, int y, boolean isFlagged, Player player) {
+        if (gameBoard.toggleFlag(x, y, isFlagged, player)) {
+            checkGameOver();
         }
-    }
-
-    public void handleNeighboringMinesCountRequest(ClientHandler clientHandler, int x, int y) {
-        int count = gameBoard.getNeighboringMinesCount(x, y);
-        clientHandler.sendMessage("NEIGHBORING_MINES_COUNT_RESPONSE " + x + " " + y + " " + count);
-    }
-
-    public synchronized void removeClientHandler(ClientHandler handler) {
-        clientHandlers.remove(handler);
-    }
-
-    public boolean isGameRunning() {
-        return isRunning;
+        broadcastUpdatedGameState();
     }
 
     public boolean isPlayerTurn(Player player) {
-        return gameStarted && players.get(currentPlayerIndex.get()).equals(player);
-    }
-
-    public boolean isGameStarted() {
-        return gameStarted;
+        return player.equals(players.get(currentPlayerIndex.get()));
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                GameServer server = new GameServer(2805);
-                server.startServer();
+        String portString = JOptionPane.showInputDialog(null, "Enter the port to start Server:");
+        if (portString == null) {
+            System.out.println("No port entered. Exiting...");
+            System.exit(0);
+        }
+        int port = Integer.parseInt(portString);
+    
+        GameServer server = new GameServer(port);
+        server.startServer();
+    
+        String serverIP;
+        try {
+            serverIP = InetAddress.getLocalHost().getHostAddress();
+        } catch (UnknownHostException e) {
+            serverIP = "Unknown";
+        }
+    
+        JFrame frame = new JFrame("Status");
+        JLabel label = new JLabel("Server running on IP: " + serverIP + " Port: " + port);
+        label.setFont(new Font("Arial",Font.PLAIN ,14));
+    
+        JButton button = new JButton("Close Connection");
+        button.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                server.stopServer();
+                frame.dispose();
             }
         });
+    
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.add(label, BorderLayout.CENTER);
+        panel.add(button, BorderLayout.SOUTH);
+    
+        frame.getContentPane().add(panel);
+        frame.setSize(340, 150);
+        frame.setVisible(true);
     }
 }
