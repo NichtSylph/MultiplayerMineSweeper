@@ -55,10 +55,11 @@ public class CellButton extends JButton {
 
     public void revealCellAction() {
         if (!gameClient.isGameStarted()) {
-            JOptionPane.showMessageDialog(this, "The game has not started yet. Please press the Ready button.", "IDLE", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "The game has not started yet. Please press the Ready button.", "IDLE",
+                    JOptionPane.WARNING_MESSAGE);
             return;
         }
-    
+
         Player currentPlayer = gameClient.getCurrentPlayer();
         System.out.println("Attempting to reveal cell: Player " + currentPlayer.getPlayerNumber() +
                 ", Current player: " + gameClient.getCurrentPlayer().getPlayerNumber());
@@ -70,19 +71,21 @@ public class CellButton extends JButton {
             // Reveal the cell in the UI
             revealCell(cell.isMine(), cell.getNeighboringMines());
         } else if (!currentPlayer.isCurrentTurn()) {
-            JOptionPane.showMessageDialog(this, "Wait for your turn, Player " + currentPlayer.getPlayerNumber() + "!", "Turn Info", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Wait for your turn, Player " + currentPlayer.getPlayerNumber() + "!",
+                    "Turn Info", JOptionPane.INFORMATION_MESSAGE);
         }
     }
 
     private void toggleFlag() {
         if (!gameClient.isGameStarted()) {
-            JOptionPane.showMessageDialog(this, "The game has not started yet. Please press the Ready button.", "IDLE", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "The game has not started yet. Please press the Ready button.", "IDLE",
+                    JOptionPane.WARNING_MESSAGE);
             return;
         }
-    
+
         if (cell.isRevealed())
             return; // Ignore flagging if the cell is revealed
-    
+
         cell.setFlagged(!cell.isFlagged());
         setIcon(cell.isFlagged() ? flagIcon : null);
         setBackground(cell.isFlagged() ? Color.YELLOW : Color.LIGHT_GRAY);
@@ -98,7 +101,7 @@ public class CellButton extends JButton {
         cell.setRevealed(true);
         setEnabled(false); // Disable the button
         setBackground(Color.WHITE); // Set the background to indicate reveal
-    
+
         if (isMine) {
             setIcon(mineIcon);
         } else {

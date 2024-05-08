@@ -1,6 +1,9 @@
 package MPMineSweeper;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -39,20 +42,12 @@ public class GameServer {
         try {
             serverSocket = new ServerSocket(port);
             System.out.println("Server started on port " + port + ". Waiting for clients...");
-    
+
             new Thread(() -> {
                 while (isRunning && players.size() < MAX_PLAYERS) {
                     try {
                         Socket clientSocket = serverSocket.accept();
-                        if (players.size() < MAX_PLAYERS) {
-                            Player player = new Player(); // Create a new Player object
-                            player.setPlayerNumber(players.size() + 1); // Set the player number
-                            player.setPassword(password); // Set the password
-                            ClientHandler clientHandler = new ClientHandler(clientSocket, this, player);
-                            new Thread(clientHandler).start();
-                        } else {
-                            System.out.println("Maximum player limit reached. Rejecting additional clients.");
-                        }
+                        handleNewConnection(clientSocket);
                     } catch (IOException e) {
                         System.out.println("Error accepting client connection: " + e.getMessage());
                     }
@@ -62,6 +57,31 @@ public class GameServer {
             System.out.println("Error starting server: " + e.getMessage());
         }
     }
+
+    private void handleNewConnection(Socket clientSocket) throws IOException {
+        BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+        PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+
+        String clientPassword = in.readLine(); // Receive password from client
+        if (players.size() < MAX_PLAYERS && this.password.equals(clientPassword)) {
+            Player player = new Player(); // Create a new Player object
+            player.setPlayerNumber(players.size() + 1); // Set the player number
+            player.setPassword(clientPassword); // Set the password
+
+            ClientHandler clientHandler = new ClientHandler(clientSocket, this, player);
+            new Thread(clientHandler).start();
+            clientHandlers.add(clientHandler);
+            players.add(player);
+
+            out.println("Password correct"); // Send response to client
+            broadcastPlayerCount();
+        } else {
+            out.println("Password incorrect"); // Send response to client
+            clientSocket.close();
+            System.out.println("Incorrect password attempt or max players reached. Connection denied.");
+        }
+    }
+
     public void stopServer() {
         isRunning = false;
         clientHandlers.forEach(ClientHandler::closeConnection);
@@ -135,19 +155,19 @@ public class GameServer {
             sendToPlayer(player, "GAME_NOT_STARTED");
             return;
         }
-    
+
         if (!isPlayerTurn(player)) {
             sendToPlayer(player, "NOT_YOUR_TURN");
             return;
         }
-    
+
         if (gameBoard.revealCell(x, y, player)) {
             checkGameOver();
         }
-       
+
         sendToPlayer(player, "MOVE_RESULT " + x + " " + y + " " + (gameBoard.getCell(x, y).isRevealed() ? "1" : "0"));
         broadcastUpdatedGameState();
-    }   
+    }
 
     private void checkGameOver() {
         if (gameBoard.getBombRevealedCount() >= MINES) {

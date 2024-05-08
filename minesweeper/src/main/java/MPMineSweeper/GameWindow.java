@@ -12,13 +12,11 @@ public class GameWindow extends JFrame {
     private JButton readyButton;
     private JLabel playerCountLabel;
     private JLabel scoreLabel;
-    private int playerNumber;
-    private int score;
-    private int currentPlayerNumber;
+    private Player player;
 
     public GameWindow(GameClient client) {
         this.gameClient = client;
-        this.score = 0;
+        this.player = client.getCurrentPlayer(); // Assume the player is initialized in the client now
         cellButtons = new CellButton[HEIGHT][WIDTH];
         initializeUI();
     }
@@ -44,7 +42,7 @@ public class GameWindow extends JFrame {
         playerCountLabel = new JLabel("Players Connected: 0");
         controlPanel.add(playerCountLabel);
 
-        scoreLabel = new JLabel("Your Score: " + score);
+        scoreLabel = new JLabel("Your Score: " + player.getScore()); // Dynamically update the score
         controlPanel.add(scoreLabel);
 
         readyButton = new JButton("Ready");
@@ -56,34 +54,31 @@ public class GameWindow extends JFrame {
 
         add(controlPanel, BorderLayout.SOUTH);
         setSize(800, 800);
+        setLocationRelativeTo(null); // Center the window
         setVisible(true);
     }
 
     public void updateCellState(int x, int y, boolean isRevealed) {
-        CellButton cellButton = cellButtons[x][y];
-        cellButton.getCell().setRevealed(isRevealed);
-        cellButton.revealCell(cellButton.getCell().isMine(), cellButton.getCell().getNeighboringMines());
-    }
-
-    public void updateCellWithMinesCount(int x, int y, int count) {
-        CellButton cellButton = cellButtons[y][x];
-        if (cellButton != null) {
-            cellButton.updateWithMinesCount(count);
-        }
+        SwingUtilities.invokeLater(() -> {
+            CellButton cellButton = cellButtons[y][x];
+            cellButton.getCell().setRevealed(isRevealed);
+            cellButton.revealCell(cellButton.getCell().isMine(), cellButton.getCell().getNeighboringMines());
+        });
     }
 
     public void updatePlayerCount(int count) {
-        playerCountLabel.setText("Players Connected: " + count);
+        SwingUtilities.invokeLater(() -> playerCountLabel.setText("Players Connected: " + count));
     }
 
     public void updateScore(int newScore) {
-        score = newScore;
-        scoreLabel.setText("Your Score: " + score);
+        SwingUtilities.invokeLater(() -> scoreLabel.setText("Your Score: " + newScore));
     }
 
-    public void handleTurnChange(int currentPlayer) {
-        this.currentPlayerNumber = currentPlayer;
-        updateTurnStatus(this.playerNumber == this.currentPlayerNumber);
+    public void handleTurnChange(int currentPlayerNumber) {
+        SwingUtilities.invokeLater(() -> {
+            player.setCurrentTurn(player.getPlayerNumber() == currentPlayerNumber);
+            updateTurnStatus(player.isCurrentTurn());
+        });
     }
 
     public void updateTurnStatus(boolean isMyTurn) {
@@ -109,9 +104,9 @@ public class GameWindow extends JFrame {
     }
 
     public void enableCellButtons(boolean enabled) {
-        for (CellButton[] row : cellButtons) {
-            for (CellButton button : row) {
-                button.setEnabled(enabled);
+        for (int y = 0; y < HEIGHT; y++) {
+            for (int x = 0; x < WIDTH; x++) {
+                cellButtons[y][x].setEnabled(enabled);
             }
         }
     }

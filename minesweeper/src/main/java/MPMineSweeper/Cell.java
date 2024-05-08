@@ -4,14 +4,12 @@ public class Cell {
     private boolean flagged; // Indicates if the cell is flagged
     private int neighboringMines; // Number of neighboring mines
     private boolean isRevealed; // Indicates if the cell is revealed
-    private Player revealedBy; // Player who revealed this cell
 
     public Cell() {
         this.isMine = false;
         this.flagged = false;
         this.neighboringMines = 0;
         this.isRevealed = false;
-        this.revealedBy = null;
     }
 
     public boolean isMine() {
@@ -44,13 +42,5 @@ public class Cell {
 
     public void setRevealed(boolean revealed) {
         isRevealed = revealed;
-    }
-
-    public Player getRevealedBy() {
-        return revealedBy;
-    }
-
-    public void setRevealedBy(Player player) {
-        this.revealedBy = player;
     }
 }
