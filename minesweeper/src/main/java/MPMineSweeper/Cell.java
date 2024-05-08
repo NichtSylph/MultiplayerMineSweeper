@@ -1,5 +1,4 @@
-package main.java.MPMineSweeper;
-
+package MPMineSweeper;
 public class Cell {
     private boolean isMine; // Indicates if the cell is a mine
     private boolean flagged; // Indicates if the cell is flagged
