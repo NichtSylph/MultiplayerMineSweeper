@@ -66,6 +66,7 @@ public class GameBoard {
         
         return true;
     }
+    
     private void calculateNeighboringMines() {
         for (int i = 0; i < height; i++) {
             for (int j = 0; j < width; j++) {

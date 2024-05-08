@@ -98,34 +98,12 @@ public class CellButton extends JButton {
         cell.setRevealed(true);
         setEnabled(false); // Disable the button
         setBackground(Color.WHITE); // Set the background to indicate reveal
-
+    
         if (isMine) {
             setIcon(mineIcon);
-        } else if (neighboringMines > 0) {
-            setIcon(getNumberIcon(neighboringMines));
+        } else {
+            updateWithMinesCount(neighboringMines);
         }
-    }
-
-    public void resetState() {
-        cell.setRevealed(false);
-        cell.setFlagged(false);
-        setIcon(null);
-        setBackground(Color.LIGHT_GRAY);
-        setEnabled(true);
-    }
-
-    public void revealWithoutMine() {
-        cell.setRevealed(true);
-        setIcon(null);
-        setBackground(Color.WHITE);
-        setEnabled(false);
-    }
-
-    public void revealWithMine() {
-        cell.setRevealed(true);
-        setIcon(mineIcon);
-        setBackground(Color.RED);
-        setEnabled(false);
     }
 
     public void updateWithMinesCount(int count) {
@@ -140,12 +118,5 @@ public class CellButton extends JButton {
 
     public Cell getCell() {
         return this.cell;
-    }
-
-    private ImageIcon getNumberIcon(int number) {
-        if (number > 0 && number <= numberIcons.length) {
-            return numberIcons[number - 1]; // Arrays are 0-indexed, so subtract 1
-        }
-        return null;
     }
 }
