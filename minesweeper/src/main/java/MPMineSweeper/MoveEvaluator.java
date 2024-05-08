@@ -1,4 +1,4 @@
-package main.java.MPMineSweeper;
+package MPMineSweeper;
 
 public class MoveEvaluator {
     private GameBoard gameBoard;

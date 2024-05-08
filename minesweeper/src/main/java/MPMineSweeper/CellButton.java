@@ -1,4 +1,4 @@
-package main.java.MPMineSweeper;
+package MPMineSweeper;
 
 import javax.swing.*;
 import javax.swing.border.LineBorder;

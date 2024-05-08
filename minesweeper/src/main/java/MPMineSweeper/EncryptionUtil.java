@@ -1,4 +1,4 @@
-package main.java.MPMineSweeper;
+package MPMineSweeper;
 
 public class EncryptionUtil {
     public static byte[] generateKey(int playerNumber, long randomNumber) {
