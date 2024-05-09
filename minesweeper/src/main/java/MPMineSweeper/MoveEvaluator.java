@@ -84,13 +84,5 @@ public class MoveEvaluator {
         public Player getPlayer() {
             return player;
         }
-
-        public int getScore() {
-            return player.getScore();
-        }
-
-        public void addScore(int score) {
-            player.incrementScore(score);
-        }
     }
 }

@@ -42,7 +42,7 @@ public class GameWindow extends JFrame {
         playerCountLabel = new JLabel("Players Connected: 0");
         controlPanel.add(playerCountLabel);
 
-        scoreLabel = new JLabel("Your Score: " + player.getScore()); // Dynamically update the score
+        scoreLabel = new JLabel("Score: " + gameClient.getScore()); // Dynamically update the score
         controlPanel.add(scoreLabel);
 
         readyButton = new JButton("Ready");
@@ -63,6 +63,23 @@ public class GameWindow extends JFrame {
             CellButton cellButton = cellButtons[y][x];
             cellButton.getCell().setRevealed(isRevealed);
             cellButton.revealCell(cellButton.getCell().isMine(), cellButton.getCell().getNeighboringMines());
+            if (isRevealed) {
+                gameClient.incrementScore(10);
+                updateScore(gameClient.getScore());
+            }
+        });
+    }
+
+    public void updateFlagState(int x, int y, boolean isFlagged) {
+        SwingUtilities.invokeLater(() -> {
+            CellButton cellButton = cellButtons[y][x];
+            cellButton.getCell().setFlagged(isFlagged);
+            if (isFlagged) {
+                gameClient.incrementScore(2);
+            } else {
+                gameClient.decrementScore(2);
+            }
+            updateScore(gameClient.getScore());
         });
     }
 

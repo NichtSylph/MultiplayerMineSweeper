@@ -11,17 +11,17 @@ public class CellButton extends JButton {
     private final int y; // Y-coordinate of the cell
     private GameClient gameClient; // Reference to the game client
     private Cell cell; // The cell this button represents
-    private static final ImageIcon mineIcon = new ImageIcon(CellButton.class.getResource("/mineicon.png"));
-    private static final ImageIcon flagIcon = new ImageIcon(CellButton.class.getResource("/flagicon.png"));
+    private static final ImageIcon mineIcon = loadIcon("resources/mineicon.png");
+    private static final ImageIcon flagIcon = loadIcon("resources/flagicon.png");
     private static final ImageIcon[] numberIcons = {
-            new ImageIcon(CellButton.class.getResource("/iconNumber1.png")),
-            new ImageIcon(CellButton.class.getResource("/iconNumber2.png")),
-            new ImageIcon(CellButton.class.getResource("/iconNumber3.png")),
-            new ImageIcon(CellButton.class.getResource("/iconNumber4.png")),
-            new ImageIcon(CellButton.class.getResource("/iconNumber5.png")),
-            new ImageIcon(CellButton.class.getResource("/iconNumber6.png")),
-            new ImageIcon(CellButton.class.getResource("/iconNumber7.png")),
-            new ImageIcon(CellButton.class.getResource("/iconNumber8.png"))
+        loadIcon("resources/iconNumber1.png"),
+        loadIcon("resources/iconNumber2.png"),
+        loadIcon("resources/iconNumber3.png"),
+        loadIcon("resources/iconNumber4.png"),
+        loadIcon("resources/iconNumber5.png"),
+        loadIcon("resources/iconNumber6.png"),
+        loadIcon("resources/iconNumber7.png"),
+        loadIcon("resources/iconNumber8.png")
     };
 
     public CellButton(int x, int y, GameClient gameClient, Cell cell) {
@@ -53,6 +53,16 @@ public class CellButton extends JButton {
         });
     }
 
+    private static ImageIcon loadIcon(String path) {
+        java.net.URL imgURL = CellButton.class.getClassLoader().getResource(path);
+        if (imgURL != null) {
+            return new ImageIcon(imgURL);
+        } else {
+            System.err.println("Couldn't find file: " + path + " -- Full path attempted: " + CellButton.class.getClassLoader().getResource("").getPath());
+            return null;
+        }
+    }
+
     public void revealCellAction() {
         if (!gameClient.isGameStarted()) {
             JOptionPane.showMessageDialog(this, "The game has not started yet. Please press the Ready button.", "IDLE",
@@ -65,7 +75,6 @@ public class CellButton extends JButton {
                 ", Current player: " + gameClient.getCurrentPlayer().getPlayerNumber());
         if (currentPlayer.isCurrentTurn() && !cell.isRevealed() && !cell.isFlagged()) {
             gameClient.sendPlayerMove(x, y);
-            currentPlayer.incrementScore(10);
             // Update the cell's state
             cell.setRevealed(true);
             // Reveal the cell in the UI
@@ -90,11 +99,6 @@ public class CellButton extends JButton {
         setIcon(cell.isFlagged() ? flagIcon : null);
         setBackground(cell.isFlagged() ? Color.YELLOW : Color.LIGHT_GRAY);
         gameClient.sendFlagChange(x, y, cell.isFlagged());
-        if (cell.isFlagged()) {
-            gameClient.getCurrentPlayer().incrementScore(2); // Increment score when a flag is placed
-        } else {
-            gameClient.getCurrentPlayer().incrementScore(-2); // Decrement score when a flag is removed
-        }
     }
 
     public void revealCell(boolean isMine, int neighboringMines) {

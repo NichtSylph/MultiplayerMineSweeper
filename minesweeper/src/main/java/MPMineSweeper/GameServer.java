@@ -74,6 +74,7 @@ public class GameServer {
             players.add(player);
 
             out.println("Password correct"); // Send response to client
+            System.out.println("Client connected: " + clientSocket.getInetAddress().getHostAddress());
             broadcastPlayerCount();
         } else {
             out.println("Password incorrect"); // Send response to client
