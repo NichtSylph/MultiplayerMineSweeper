@@ -10,9 +10,6 @@ import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
-import java.util.ArrayList;
-import java.util.List;
-
 public class GameClient {
     private JFrame joinFrame;
     private JTextField ipTextField, portTextField, passwordTextField;
@@ -20,13 +17,13 @@ public class GameClient {
     private PrintWriter out;
     private BufferedReader in;
     private Socket socket;
-    // private List<Player> players = new ArrayList<>();
+    private Player player;
     private int score = 0;
-    private Integer playerNumber;
     private boolean gameStarted;
     private boolean isCurrentActivePlayer;
 
     public GameClient() {
+        this.player = new Player();
         createJoinFrame();
     }
 
@@ -127,21 +124,27 @@ public class GameClient {
         joinFrame.dispose(); // Dispose the join frame after successful connection
     }
     
+    public Player getCurrentPlayer() {
+        return isCurrentActivePlayer ? player : null;
+    }
+    
     public Integer getPlayerNumber() {
-        if (playerNumber == null) {
-            send("GETCURRENTPLAYERNUMBER");
+        Player currentPlayer = getCurrentPlayer();
+        if (currentPlayer != null) {
+            return currentPlayer.getPlayerNumber();
+        } else {
+            send("GET_CURRENT_PLAYER_NUMBER");
             try {
                 processServerMessage(in.readLine());
             } catch (IOException e) {
                 System.err.println("Error handling command from client: " + e.getMessage());
-            }  
+            }
+            return currentPlayer != null ? currentPlayer.getPlayerNumber() : null;
         }
-
-        return playerNumber;
     }
 
     public boolean isGameStarted() {
-        send("ISGAMESTARTED");
+        send("IS_GAME_STARTED");
         
         try {
             processServerMessage(in.readLine());
@@ -153,11 +156,11 @@ public class GameClient {
     }
 
     public void endTurn() {
-        send("ENDTURN");
+        send("END_TURN");
     }
 
     public Boolean checkCurrentActivePlayer() {
-        send("ISCURRENTACTIVEPLAYER");
+        send("IS_CURRENT_ACTIVE_PLAYER");
 
         try {
             processServerMessage(in.readLine());
@@ -191,17 +194,20 @@ public class GameClient {
             String[] parts = inputLine.split(" ");
             if (parts.length > 0) {
                 switch (parts[0]) {
-                    case "CURRENTPLAYERNUMBER":
-                        if (parts.length == 1) {
-                            playerNumber = Integer.valueOf(parts[1]);
+                    case "CURRENT_PLAYER_NUMBER":
+                        if (parts.length == 2) {
+                            Player currentPlayer = getCurrentPlayer();
+                            if (currentPlayer != null) {
+                                currentPlayer.setPlayerNumber(Integer.valueOf(parts[1]));
+                            }
                         }
                         break;
-                    case "ISGAMESTARTED":
+                    case "IS_GAME_STARTED":
                         if (parts.length == 1) {
                             gameStarted = Boolean.valueOf(parts[1]);
                         }
                         break;
-                    case "ISCURRENTACTIVEPLAYER":
+                    case "IS_CURRENT_ACTIVE_PLAYER":
                         if (parts.length == 1) {
                             isCurrentActivePlayer = Boolean.valueOf(parts[1]);
                         }

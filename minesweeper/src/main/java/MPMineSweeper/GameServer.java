@@ -140,7 +140,7 @@ public class GameServer {
     private void startGame() {
         if (!gameStarted) {
             gameStarted = true;
-            // broadcastMessage("GAME_STARTED");
+            broadcastMessage("GAME_STARTED");
             gameBoard.startGame();
             currentPlayerIndex.set(0);
             broadcastTurnChange();
@@ -183,7 +183,7 @@ public class GameServer {
         }
     }
 
-    private void switchTurns() {
+    public void switchTurns() {
         currentPlayerIndex.incrementAndGet();
         currentPlayerIndex.set(currentPlayerIndex.get() % players.size());
         broadcastTurnChange();

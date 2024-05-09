@@ -55,17 +55,17 @@ public class ClientHandler implements Runnable {
                 case "READY":
                     server.playerReady(player);
                     break;
-                case "GETCURRENTPLAYERNUMBER":
-                    sendMessage("CURRENTPLAYERNUMBER " + String.valueOf(player.getPlayerNumber()));
+                case "GET_CURRENT_PLAYER_NUMBER":
+                    sendMessage("CURRENT_PLAYER_NUMBER " + String.valueOf(player.getPlayerNumber()));
                     break;
-                case "ISGAMESTARTED":
-                    sendMessage("ISGAMESTARTED " + String.valueOf(server.getGameStarted()));
+                case "IS_GAME_STARTED":
+                    sendMessage("IS_GAME_STARTED " + String.valueOf(server.getGameStarted()));
                     break;
-                case "ISCURRENTACTIVEPLAYER":
-                    sendMessage("ISCURRENTACTIVEPLAYER " + String.valueOf(server.isPlayerTurn(player)));
+                case "IS_CURRENT_ACTIVE_PLAYER":
+                    sendMessage("IS_CURRENT_ACTIVE_PLAYER " + String.valueOf(server.isPlayerTurn(player)));
                     break;
                 case "ENDTURN":
-                    // server.switchTurns();
+                    server.switchTurns();
                     break;
                 case "REQUEST_NEIGHBORING_MINES_COUNT":
                     handleRequestNeighboringMinesCount(parts);

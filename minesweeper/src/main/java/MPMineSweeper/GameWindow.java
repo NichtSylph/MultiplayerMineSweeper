@@ -16,7 +16,7 @@ public class GameWindow extends JFrame {
 
     public GameWindow(GameClient client) {
         this.gameClient = client;
-        this.playerNumber = client.getPlayerNumber(); // Assume the player is initialized in the client now
+        this.playerNumber = client.getPlayerNumber();
         cellButtons = new CellButton[HEIGHT][WIDTH];
         initializeUI();
     }
