@@ -20,8 +20,11 @@ public class GameClient {
     private PrintWriter out;
     private BufferedReader in;
     private Socket socket;
-    private List<Player> players = new ArrayList<>();
+    // private List<Player> players = new ArrayList<>();
     private int score = 0;
+    private Integer playerNumber;
+    private boolean gameStarted;
+    private boolean isCurrentActivePlayer;
 
     public GameClient() {
         createJoinFrame();
@@ -89,6 +92,7 @@ public class GameClient {
                     if ("Password incorrect".equals(response)) {
                         JOptionPane.showMessageDialog(joinFrame, "Password incorrect. Please try again.", "Login Failed", JOptionPane.ERROR_MESSAGE);
                     } else if ("Password correct".equals(response)) {
+                        getPlayerNumber();
                         openGameWindow(); // Opens the game window if the password is correct
                     } else {
                         JOptionPane.showMessageDialog(joinFrame, "Unexpected response from server.", "Error", JOptionPane.ERROR_MESSAGE);
@@ -123,23 +127,45 @@ public class GameClient {
         joinFrame.dispose(); // Dispose the join frame after successful connection
     }
     
-    public Player getCurrentPlayer() {
-        for (Player player : players) {
-            if (player.isCurrentTurn()) {
-                return player;
-            }
+    public Integer getPlayerNumber() {
+        if (playerNumber == null) {
+            send("GETCURRENTPLAYERNUMBER");
+            try {
+                processServerMessage(in.readLine());
+            } catch (IOException e) {
+                System.err.println("Error handling command from client: " + e.getMessage());
+            }  
         }
-        return null; // return null if no player's turn is currently true, handle this case
-                     // appropriately in your code
+
+        return playerNumber;
     }
 
     public boolean isGameStarted() {
-        for (Player player : players) {
-            if (!player.isReady()) {
-                return false;
-            }
+        send("ISGAMESTARTED");
+        
+        try {
+            processServerMessage(in.readLine());
+        } catch (IOException e) {
+            System.err.println("Error handling command from client: " + e.getMessage());
         }
-        return true;
+
+        return gameStarted;
+    }
+
+    public void endTurn() {
+        send("ENDTURN");
+    }
+
+    public Boolean checkCurrentActivePlayer() {
+        send("ISCURRENTACTIVEPLAYER");
+
+        try {
+            processServerMessage(in.readLine());
+        } catch (IOException e) {
+            System.err.println("Error handling command from client: " + e.getMessage());
+        }
+
+        return isCurrentActivePlayer;
     }
 
     public void sendReady() {
@@ -159,9 +185,33 @@ public class GameClient {
             out.println("FLAG " + x + " " + y + " " + isFlagged);
         }
     }
-    
-    private void processServerMessage(String message) {
-        // add cases to process server messages
+
+    private void processServerMessage(String inputLine) {
+        if (inputLine != null) {
+            String[] parts = inputLine.split(" ");
+            if (parts.length > 0) {
+                switch (parts[0]) {
+                    case "CURRENTPLAYERNUMBER":
+                        if (parts.length == 1) {
+                            playerNumber = Integer.valueOf(parts[1]);
+                        }
+                        break;
+                    case "ISGAMESTARTED":
+                        if (parts.length == 1) {
+                            gameStarted = Boolean.valueOf(parts[1]);
+                        }
+                        break;
+                    case "ISCURRENTACTIVEPLAYER":
+                        if (parts.length == 1) {
+                            isCurrentActivePlayer = Boolean.valueOf(parts[1]);
+                        }
+                        break;
+                    default:
+                        System.err.println("Received unknown command: " + parts[0]);
+                        break;
+                }
+            }
+        }
     }
 
     public void send(String message) {

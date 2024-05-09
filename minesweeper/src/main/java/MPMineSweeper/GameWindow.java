@@ -12,11 +12,11 @@ public class GameWindow extends JFrame {
     private JButton readyButton;
     private JLabel playerCountLabel;
     private JLabel scoreLabel;
-    private Player player;
+    private Integer playerNumber;
 
     public GameWindow(GameClient client) {
         this.gameClient = client;
-        this.player = client.getCurrentPlayer(); // Assume the player is initialized in the client now
+        this.playerNumber = client.getPlayerNumber(); // Assume the player is initialized in the client now
         cellButtons = new CellButton[HEIGHT][WIDTH];
         initializeUI();
     }
@@ -93,7 +93,7 @@ public class GameWindow extends JFrame {
 
     public void handleTurnChange(int currentPlayerNumber) {
         SwingUtilities.invokeLater(() -> {
-            boolean isCurrentTurn = player.getPlayerNumber() == currentPlayerNumber;
+            boolean isCurrentTurn = playerNumber == currentPlayerNumber;
             updateTurnStatus(isCurrentTurn);
         });
     }

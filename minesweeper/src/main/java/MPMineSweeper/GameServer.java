@@ -38,6 +38,10 @@ public class GameServer {
         isRunning = true;
     }
 
+    public Boolean getGameStarted() {
+        return gameStarted;
+    }
+
     public void startServer() {
         try {
             serverSocket = new ServerSocket(port);
@@ -136,7 +140,7 @@ public class GameServer {
     private void startGame() {
         if (!gameStarted) {
             gameStarted = true;
-            broadcastMessage("GAME_STARTED");
+            // broadcastMessage("GAME_STARTED");
             gameBoard.startGame();
             currentPlayerIndex.set(0);
             broadcastTurnChange();
