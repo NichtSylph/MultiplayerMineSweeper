@@ -41,42 +41,4 @@ public class EncryptionUtil {
 
         return result;
     }
-
-    public static void main(String[] args) throws Exception {
-
-        // Client one
-        KeyPair clientOneKeyPair = generateRSAKeyPair();
-        PublicKey clientOnePublicKey = clientOneKeyPair.getPublic();
-        PrivateKey clientOnePrivateKey = clientOneKeyPair.getPrivate();
-
-        // Client two
-        KeyPair clientTwoKeyPair = generateRSAKeyPair();
-        PublicKey clientTwoPublicKey = clientTwoKeyPair.getPublic();
-        PrivateKey clientTwoPrivateKey = clientTwoKeyPair.getPrivate();
-
-        // Key exchange: client one sends her public key to client two, and vice versa
-        byte[] clientOneKeyPayload = generateKeyExchangePayload(1, 123, clientTwoPublicKey);
-        byte[] clientTwoKeyPayload = generateKeyExchangePayload(2, 456, clientOnePublicKey);
-        // Send respective payloads here...
-
-        // Client one receives client two's key exchange payload and decrypts it
-        byte[] decryptedClientTwoKeyExchangePayload = keyExchange(clientTwoKeyPayload, clientOnePrivateKey);
-        // Client one now has client two's key, eg. decryptedClientTwoKeyExchangePayload
-
-        // Client two receives client one's key exchange payload and decrypts it
-        byte[] decryptedClientOneExchangePayload = keyExchange(clientOneKeyPayload, clientTwoPrivateKey);
-        // Client two now has Client one's key. eg. decryptedClientOneKeyExchangePayload
-
-        // Client two and client one can use each other's public keys to encrypt messages
-
-        // Client one wants to send a message to client two...
-        String clientOneMessage = "Hello Client Two!";
-        byte[] encryptedMessage = encryptRSA(clientOneMessage.getBytes(), clientTwoPublicKey);
-
-        // Send stuff here
-
-        // Client two receives the encrypted message and decrypts it with their private key
-        byte[] decryptedMessage = decryptRSA(encryptedMessage, clientTwoPrivateKey);
-        System.out.println("Decrypted message: " + new String(decryptedMessage));
-    }
 }

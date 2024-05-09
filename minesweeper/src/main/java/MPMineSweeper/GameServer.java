@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import MPMineSweeper.MoveEvaluator.MoveResult;
+
 public class GameServer {
     private int port;
     private String password;
@@ -25,6 +27,7 @@ public class GameServer {
     private static final int HEIGHT = 16;
     private static final int MINES = 32;
     private static final int MAX_PLAYERS = 4;
+    private static final int MIN_REQUIRED_PLAYERS = 1;
 
     public GameServer(int port, String password) {
         this.port = port;
@@ -104,19 +107,27 @@ public class GameServer {
         }
     }
 
-    public synchronized void addPlayer(Socket clientSocket, Player newPlayer) {
+    public synchronized void addPlayer(Socket clientSocket, Player newPlayer, String clientPassword) {
         if (newPlayer.getPassword().equals(password) && players.size() < MAX_PLAYERS) {
             ClientHandler clientHandler = new ClientHandler(clientSocket, this, newPlayer);
             clientHandlers.add(clientHandler);
             players.add(newPlayer);
-            clientHandler.sendMessage("PLAYER_NUMBER " + newPlayer.getPlayerNumber());
-            broadcastPlayerCount();
+            new Thread(clientHandler).start();
+            clientHandler.sendMessage("Password correct"); // Let ClientHandler manage the messaging
+            broadcastPlayerCount(); // Broadcast player count when a player is added
         } else {
-            System.out.println("Incorrect password attempt or max players reached. Connection denied.");
-            try {
-                clientSocket.close();
+            // Since the ClientHandler has not been created yet, we need to send a message
+            // directly.
+            try (PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)) {
+                out.println("Password incorrect or max players reached");
             } catch (IOException e) {
-                System.out.println("Failed to close socket after denied connection.");
+                System.err.println("Failed to send error message to client: " + e.getMessage());
+            } finally {
+                try {
+                    clientSocket.close();
+                } catch (IOException e) {
+                    System.err.println("Failed to close socket after denied connection: " + e.getMessage());
+                }
             }
         }
     }
@@ -125,25 +136,41 @@ public class GameServer {
         return this.players;
     }
 
-    private void broadcastPlayerCount() {
-        broadcastMessage("PLAYERS_CONNECTED " + players.size());
+    public void broadcastPlayerCount() {
+        String message = "PLAYERS_CONNECTED " + players.size();
+        broadcastMessage(message);
     }
 
     public synchronized void playerReady(Player player) {
-        if (!gameStarted && readyPlayers.incrementAndGet() == players.size()) {
-            startGame();
-        } else if (!gameStarted && players.size() > 1) {
-            sendToPlayer(player, "WAITING_FOR_PLAYERS");
+        if (!gameStarted) {
+            readyPlayers.incrementAndGet();
+            System.out.println("Player " + player.getPlayerNumber() + " is ready. Total ready: " + readyPlayers.get());
+
+            // Check if all players are ready. Adjust according to your game's minimum
+            // player requirement.
+            if (readyPlayers.get() >= players.size() && players.size() >= MIN_REQUIRED_PLAYERS) { // Assuming
+                                                                                                  // MIN_REQUIRED_PLAYERS
+                                                                                                  // is defined
+                System.out.println("All players are ready. Starting game...");
+                startGame();
+            } else {
+                System.out.println("Waiting for more players to be ready...");
+                sendToPlayer(player, "WAITING_FOR_PLAYERS " + readyPlayers.get() + "/" + players.size());
+            }
+        } else {
+            System.out.println("Game already started, notifying player...");
+            sendToPlayer(player, "IS_GAME_STARTED true");
         }
     }
 
     private void startGame() {
-        if (!gameStarted) {
+        if (!gameStarted && players.size() > 1) { // Ensure there's more than one player
             gameStarted = true;
+            System.out.println("Broadcasting GAME_STARTED message");
             broadcastMessage("GAME_STARTED");
-            gameBoard.startGame();
             currentPlayerIndex.set(0);
             broadcastTurnChange();
+            System.out.println("Game started with " + players.size() + " players.");
         }
     }
 
@@ -151,8 +178,12 @@ public class GameServer {
         broadcastMessage("TURN_CHANGED " + currentPlayerIndex.get());
     }
 
-    private void broadcastMessage(String message) {
-        clientHandlers.forEach(handler -> handler.sendMessage(message));
+    public void broadcastMessage(String message) {
+        System.out.println("Broadcasting message: " + message);
+        clientHandlers.forEach(handler -> {
+            System.out.println("Sending to client: " + handler.getPlayer().getPlayerNumber() + " message: " + message);
+            handler.sendMessage(message);
+        });
     }
 
     public synchronized void processPlayerMove(Player player, int x, int y) {
@@ -166,11 +197,12 @@ public class GameServer {
             return;
         }
 
-        if (gameBoard.revealCell(x, y)) {
-            checkGameOver();
+        MoveResult result = gameBoard.evaluateMove(x, y, player);
+        if (result.isMine()) {
+            handleGameOver(player, false);
         }
 
-        sendToPlayer(player, "MOVE_RESULT " + x + " " + y + " " + (gameBoard.getCell(x, y).isRevealed() ? "1" : "0"));
+        sendToPlayer(player, "MOVE_RESULT " + x + " " + y + " " + (result.isValid() ? "1" : "0"));
         broadcastUpdatedGameState();
     }
 
@@ -190,6 +222,7 @@ public class GameServer {
     }
 
     private void sendToPlayer(Player player, String message) {
+        System.out.println("Sending to player: " + player.getPlayerNumber() + " message: " + message);
         clientHandlers.stream()
                 .filter(h -> h.getPlayer().equals(player))
                 .findFirst()
@@ -216,7 +249,16 @@ public class GameServer {
     public void handlePlayerQuit(Player player) {
         players.remove(player);
         clientHandlers.removeIf(handler -> handler.getPlayer().equals(player));
-        broadcastPlayerCount();
+        broadcastPlayerCount(); // Broadcast player count when a player quits
+    }
+
+    public void handleGameOver(Player player, boolean won) {
+        if (won) {
+            System.out.println("Player " + player.getPlayerNumber() + " won the game!");
+        } else {
+            System.out.println("Player " + player.getPlayerNumber() + " lost the game!");
+        }
+        stopServer();
     }
 
     public GameBoard getGameBoard() {
@@ -232,6 +274,10 @@ public class GameServer {
 
     public boolean isPlayerTurn(Player player) {
         return player.equals(players.get(currentPlayerIndex.get()));
+    }
+
+    public int getCurrentPlayerCount() {
+        return players.size();
     }
 
     public static void main(String[] args) {

@@ -7,8 +7,6 @@ public class GameBoard {
     private int width;
     private int height;
     private int mineCount;
-    private boolean gameStarted;
-    private boolean gameOver;
     private int bombRevealedCount;
     private MoveEvaluator moveEvaluator;
 
@@ -16,8 +14,6 @@ public class GameBoard {
         this.width = width;
         this.height = height;
         this.mineCount = mineCount;
-        this.gameStarted = false;
-        this.gameOver = false;
         this.bombRevealedCount = 0;
         this.cells = new Cell[height][width];
         initializeCells();
@@ -48,8 +44,8 @@ public class GameBoard {
     }
 
     public boolean toggleFlag(int x, int y, boolean isFlagged) {
-        if (x < 0 || x >= width || y < 0 || y >= height || gameOver) {
-            return false; // Cell is out of bounds or game is over
+        if (x < 0 || x >= width || y < 0 || y >= height) {
+            return false; // Cell is out of bounds
         }
     
         Cell cell = cells[y][x];
@@ -90,8 +86,8 @@ public class GameBoard {
     }
 
     public boolean revealCell(int x, int y) {
-        if (x < 0 || x >= width || y < 0 || y >= height || gameOver) {
-            return false; // Cell is out of bounds or game is over
+        if (x < 0 || x >= width || y < 0 || y >= height) {
+            return false; // Cell is out of bounds
         }
     
         Cell cell = cells[y][x];
@@ -102,9 +98,6 @@ public class GameBoard {
         cell.setRevealed(true);
         if (cell.isMine()) {
             bombRevealedCount++;
-            if (bombRevealedCount >= mineCount) {
-                gameOver = true;
-            }
             return true;
         }
     
@@ -114,6 +107,7 @@ public class GameBoard {
     
         return false;
     }
+
 
     private void revealSurroundingCells(int x, int y) {
         for (int i = -1; i <= 1; i++) {
@@ -131,22 +125,6 @@ public class GameBoard {
 
     public MoveEvaluator.MoveResult evaluateMove(int x, int y, Player player) {
         return moveEvaluator.evaluateMove(x, y, player);
-    }
-
-    public void startGame() {
-        gameStarted = true;
-    }
-
-    public boolean isGameStarted() {
-        return gameStarted;
-    }
-
-    public void setGameOver(boolean gameOver) {
-        this.gameOver = gameOver;
-    }
-
-    public boolean isGameOver() {
-        return gameOver;
     }
 
     public Cell getCell(int x, int y) {

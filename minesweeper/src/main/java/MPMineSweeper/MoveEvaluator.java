@@ -12,8 +12,8 @@ public class MoveEvaluator {
     }
 
     public MoveResult evaluateMove(int x, int y, Player player) {
-        // Ensure the move is being made by the current player and the game is started
-        if (!player.equals(players[playerIndex]) || !gameBoard.isGameStarted()) {
+        // Ensure the move is being made by the current player
+        if (!player.equals(players[playerIndex])) {
             return new MoveResult(false, false, player);
         }
 
@@ -23,10 +23,9 @@ public class MoveEvaluator {
         }
 
         // Reveal the cell and check if it's a mine
-        cell.setRevealed(true);
-        boolean isMine = cell.isMine();
+        boolean isMine = gameBoard.revealCell(x, y);
         if (isMine) {
-            gameBoard.setGameOver(true);
+            // gameBoard.setGameOver(true); // This line is removed
         } else {
             // If the cell is not a mine, recursively reveal adjacent cells if it has zero
             // neighboring mines

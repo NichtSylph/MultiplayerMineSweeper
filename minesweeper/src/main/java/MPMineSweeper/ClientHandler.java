@@ -21,6 +21,7 @@ public class ClientHandler implements Runnable {
             System.err.println("Error initializing streams: " + e.getMessage());
             closeConnection();
         }
+        System.out.println("ClientHandler created for player number: " + player.getPlayerNumber()); // Debugging line
     }
 
     @Override
@@ -36,13 +37,17 @@ public class ClientHandler implements Runnable {
             System.err.println("Client disconnected: " + e.getMessage());
         } finally {
             server.handlePlayerQuit(player);
+            server.broadcastPlayerCount(); // Broadcast player count when a player quits
+            server.broadcastMessage("Player " + player.getPlayerNumber() + " has quit the game.");
             closeConnection();
         }
     }
 
     private boolean interpretClientMessage(String inputLine) {
+        System.out.println("Received message from client: " + inputLine); // Debugging line
         String[] parts = inputLine.split(" ");
-        if (parts.length == 0) return false; // Handle empty messages
+        if (parts.length == 0)
+            return false; // Handle empty messages
 
         try {
             switch (parts[0]) {
@@ -55,20 +60,29 @@ public class ClientHandler implements Runnable {
                 case "READY":
                     server.playerReady(player);
                     break;
+                case "UPDATE_PLAYER_COUNT":
+                    handleUpdatePlayerCount();
+                    break;
                 case "GET_CURRENT_PLAYER_NUMBER":
                     sendMessage("CURRENT_PLAYER_NUMBER " + String.valueOf(player.getPlayerNumber()));
                     break;
                 case "IS_GAME_STARTED":
                     sendMessage("IS_GAME_STARTED " + String.valueOf(server.getGameStarted()));
                     break;
+                case "GAME_STARTED":
+                    sendMessage("GAME_STARTED " + String.valueOf(server.getGameStarted()));
+                    break;
                 case "IS_CURRENT_ACTIVE_PLAYER":
                     sendMessage("IS_CURRENT_ACTIVE_PLAYER " + String.valueOf(server.isPlayerTurn(player)));
                     break;
-                case "ENDTURN":
+                case "END_TURN":
                     server.switchTurns();
                     break;
                 case "REQUEST_NEIGHBORING_MINES_COUNT":
                     handleRequestNeighboringMinesCount(parts);
+                    break;
+                case "GAMEOVER":
+                    handleGameOverCommand(parts);
                     break;
                 default:
                     System.err.println("Received unknown command: " + parts[0]);
@@ -100,8 +114,19 @@ public class ClientHandler implements Runnable {
         sendMessage("NEIGHBORING_MINES_COUNT_RESPONSE " + x + " " + y + " " + count);
     }
 
+    private void handleUpdatePlayerCount() {
+        int playerCount = server.getCurrentPlayerCount();
+        sendMessage("UPDATE_PLAYER_COUNT " + playerCount);
+    }
+
+    private void handleGameOverCommand(String[] parts) {
+        boolean isWinner = parts[1].equals("1");
+        server.handleGameOver(player, isWinner);
+    }
+
     public void sendMessage(String message) {
         out.println(message);
+        System.out.println("Sent message to client: " + message); // Debugging line
     }
 
     public Player getPlayer() {
@@ -110,9 +135,12 @@ public class ClientHandler implements Runnable {
 
     public void closeConnection() {
         try {
-            if (out != null) out.close();
-            if (in != null) in.close();
-            if (clientSocket != null && !clientSocket.isClosed()) clientSocket.close();
+            if (out != null)
+                out.close();
+            if (in != null)
+                in.close();
+            if (clientSocket != null && !clientSocket.isClosed())
+                clientSocket.close();
         } catch (IOException e) {
             System.err.println("Error closing connection: " + e.getMessage());
         }

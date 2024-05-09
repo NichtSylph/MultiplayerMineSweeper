@@ -18,6 +18,7 @@ public class GameWindow extends JFrame {
         this.gameClient = client;
         this.playerNumber = client.getPlayerNumber();
         cellButtons = new CellButton[HEIGHT][WIDTH];
+        System.out.println("GameWindow created with player number: " + playerNumber); // Debugging line
         initializeUI();
     }
 
@@ -67,6 +68,7 @@ public class GameWindow extends JFrame {
                 gameClient.incrementScore(10);
                 updateScore(gameClient.getScore());
             }
+            System.out.println("Cell state updated at (" + x + ", " + y + ") to " + (isRevealed ? "revealed" : "hidden")); // Debugging line
         });
     }
 
@@ -84,7 +86,10 @@ public class GameWindow extends JFrame {
     }
 
     public void updatePlayerCount(int count) {
-        SwingUtilities.invokeLater(() -> playerCountLabel.setText("Players Connected: " + count));
+        SwingUtilities.invokeLater(() -> {
+            playerCountLabel.setText("Players Connected: " + count);
+            System.out.println("Player count updated to: " + count); // Debugging line
+        });
     }
 
     public void updateScore(int newScore) {
@@ -126,6 +131,10 @@ public class GameWindow extends JFrame {
                 cellButtons[y][x].setEnabled(enabled);
             }
         }
+    }
+
+    public void setPlayerNumber(int playerNumber){
+        this.playerNumber = playerNumber;
     }
 
     public JButton getReadyButton() {
