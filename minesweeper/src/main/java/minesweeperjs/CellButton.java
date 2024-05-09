@@ -57,14 +57,17 @@ public class CellButton extends JButton {
         Player currentPlayer = gameClient.getCurrentPlayer();
         System.out.println("Attempting to reveal cell: Player " + currentPlayer.getPlayerNumber() +
                 ", Current player: " + gameClient.getCurrentPlayer().getPlayerNumber());
-        if (currentPlayer.isCurrentTurn() && !cell.isRevealed() && !cell.isFlagged()) {
+        if (gameClient.isCurrentClient() && !cell.isRevealed() && !cell.isFlagged()) {
             gameClient.sendPlayerMove(x, y);
             currentPlayer.incrementScore(10);
             // Update the cell's state
             cell.setRevealed(true);
             // Reveal the cell in the UI
             revealCell(cell.isMine(), cell.getNeighboringMines());
-        } else if (!currentPlayer.isCurrentTurn()) {
+            if (cell.isRevealed()) {
+              gameClient.endTurn();
+            }
+        } else if (!gameClient.isCurrentClient()) {
             JOptionPane.showMessageDialog(this, "Wait for your turn, Player " + currentPlayer.getPlayerNumber() + "!", "Turn Info", JOptionPane.INFORMATION_MESSAGE);
         }
     }

@@ -65,6 +65,16 @@ public class ClientHandler implements Runnable {
                 case "READY":
                     server.playerReady(player);
                     break;
+                case "ENDTURN":
+                    server.setCurrentPlayer(server.getNextPlayer(player));
+                    break;
+                case "ISMYTURN":
+                    if (player == server.getCurrentPlayer()) {
+                        sendMessage("T");
+                    } else {
+                        sendMessage("F");
+                    }
+                    break;
                 case "REQUEST_NEIGHBORING_MINES_COUNT":
                     handleRequestNeighboringMinesCount(parts);
                     break;

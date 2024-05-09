@@ -4,6 +4,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.io.*;
 import java.net.Socket;
+import java.util.function.BooleanSupplier;
 
 public class GameClient {
     private String serverAddress;
@@ -12,7 +13,8 @@ public class GameClient {
     private BufferedReader in;
     private PrintWriter out;
     private GameWindow gameWindow;
-    private Player currentPlayer;
+    private Integer playerNumber;
+    private Boolean currentClient;
     private JFrame joinFrame;
     private JTextField ipTextField;
     private boolean gameStarted = false;
@@ -98,6 +100,27 @@ public class GameClient {
                     JOptionPane.ERROR_MESSAGE);
             joinFrame.setVisible(true); // Show join frame again to allow reconnection attempt
         }
+    }
+
+    // KKM
+    public void endTurn() {
+        sendMessage("ENDTURN");
+    }
+
+    public Boolean isCurrentClient() {
+        sendMessage("ISMYTURN");
+        try {
+            String res = in.readLine();
+            if (res == "T") {
+                currentClient = true;
+            } else if (res == "F") {
+                currentClient = false;
+            }
+        } catch (IOException e) {
+            currentClient = false;
+        }
+
+        return currentClient;
     }
 
     public boolean isGameStarted() {

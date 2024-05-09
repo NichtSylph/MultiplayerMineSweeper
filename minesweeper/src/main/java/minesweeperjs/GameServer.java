@@ -27,6 +27,7 @@ public class GameServer {
     private GameBoard gameBoard;
     private AtomicInteger currentPlayerIndex;
     private List<Player> players;
+    private Player currentPlayer;
     private AtomicInteger readyPlayers;
     private static final int WIDTH = 16;
     private static final int HEIGHT = 16;
@@ -64,6 +65,10 @@ public class GameServer {
         }
     }
 
+    public Player getCurrentPlayer() {
+        return currentPlayer;
+    }
+
     public void stopServer() {
         isRunning = false;
         clientHandlers.forEach(ClientHandler::closeConnection);
@@ -83,7 +88,10 @@ public class GameServer {
 
     public synchronized void addPlayer(Socket clientSocket) {
         Player newPlayer = new Player("Player " + (players.size() + 1));
-        players.add(newPlayer);
+        players.add(newPlayer); 
+        if (currentPlayer == null) {
+            setCurrentPlayer(newPlayer);
+        }
         ClientHandler clientHandler = new ClientHandler(clientSocket, this, newPlayer);
         clientHandlers.add(clientHandler);
         new Thread(clientHandler).start();
@@ -92,6 +100,10 @@ public class GameServer {
         clientHandler.sendMessage("PLAYER_NUMBER " + newPlayer.getPlayerNumber());
         clientHandler.sendMessage("WELCOME Welcome to Lobby, you are Player Number " + newPlayer.getPlayerNumber());
         broadcastPlayerCount();
+    }
+
+    public void setCurrentPlayer(Player player) {
+        currentPlayer = player;
     }
 
     private void broadcastPlayerCount() {
@@ -142,6 +154,31 @@ public class GameServer {
         sendToPlayer(player, "MOVE_RESULT " + x + " " + y + " " + (gameBoard.getCell(x, y).isRevealed() ? "1" : "0"));
         broadcastUpdatedGameState();
     }   
+
+    public Player getNextPlayer(Player currentPlayer) {
+    //    players
+      Player p = null;
+      Integer playerCounts = players.size();
+
+      Integer nextPlayerIndex = null;
+
+      for (Player player : this.players) {
+        if (player == currentPlayer) {
+            Integer index = this.players.indexOf(player);
+            if (index < (playerCounts - 1)) {
+                nextPlayerIndex = index + 1;
+            } else {
+                nextPlayerIndex = 0;
+            }
+        }
+      }
+
+      if (nextPlayerIndex != null) {
+        p = players.get(nextPlayerIndex);
+      }
+
+      return p;
+    }
 
     private void checkGameOver() {
         if (gameBoard.getBombRevealedCount() >= MINES) {
@@ -200,7 +237,7 @@ public class GameServer {
     }
 
     public boolean isPlayerTurn(Player player) {
-        return player.equals(players.get(currentPlayerIndex.get()));
+        return player == currentPlayer;
     }
 
     public static void main(String[] args) {
