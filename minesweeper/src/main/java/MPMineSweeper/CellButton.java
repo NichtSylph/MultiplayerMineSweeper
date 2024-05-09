@@ -65,7 +65,7 @@ public class CellButton extends JButton {
 
     public void revealCellAction() {
         if (!gameClient.isGameStarted()) {
-            JOptionPane.showMessageDialog(this, "The game has not started yet. Please press the Ready button.", "IDLE",
+            JOptionPane.showMessageDialog(this, "The game has not started yet. If you haven't done so, please press the Ready button.", "IDLE",
                     JOptionPane.WARNING_MESSAGE);
             return;
         }

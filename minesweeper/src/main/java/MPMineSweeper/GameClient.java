@@ -21,6 +21,8 @@ public class GameClient extends Thread {
     private int score = 0;
     private boolean gameStarted = false;
     private boolean isCurrentActivePlayer;
+    private JButton joinButton;
+    private Boolean stopServerListener = false;
 
     public GameClient() {
         createJoinFrame();
@@ -28,12 +30,6 @@ public class GameClient extends Thread {
 
     public void getPlayerFromServer() {
         send("GETCURRENTPLAYER");
-
-        try {
-            processServerMessage(in.readLine());
-        } catch (IOException e) {
-            System.err.println("Error handling command from client: " + e.getMessage());
-        }
     }
 
     private void createJoinFrame() {
@@ -73,8 +69,8 @@ public class GameClient extends Thread {
     }
 
     private void handleJoinAction(ActionEvent e) {
-        JButton joinButton = (JButton) e.getSource();
-        joinButton.setEnabled(false); // Disable the join button to prevent multiple clicks
+        this.joinButton = (JButton) e.getSource();
+        this.joinButton.setEnabled(false); // Disable the join button to prevent multiple clicks
     
         new Thread(() -> {
             try {
@@ -92,18 +88,8 @@ public class GameClient extends Thread {
                 out.flush();
     
                 // Read response from server
-                String response = in.readLine();
+                processServerMessage(in.readLine());
     
-                SwingUtilities.invokeLater(() -> {
-                    if ("Password incorrect".equals(response)) {
-                        JOptionPane.showMessageDialog(joinFrame, "Password incorrect. Please try again.", "Login Failed", JOptionPane.ERROR_MESSAGE);
-                    } else if ("Password correct".equals(response)) {  
-                        openGameWindow(); // Opens the game window if the password is correct
-                    } else {
-                        JOptionPane.showMessageDialog(joinFrame, "Unexpected response from server.", "Error", JOptionPane.ERROR_MESSAGE);
-                    }
-                    joinButton.setEnabled(true); // Re-enable the join button irrespective of the server response
-                });
             } catch (SocketTimeoutException ex) {
                 SwingUtilities.invokeLater(() -> {
                     JOptionPane.showMessageDialog(joinFrame, "Connection timed out. Please check the IP and port and try again.",
@@ -128,20 +114,14 @@ public class GameClient extends Thread {
     
     private void openGameWindow() {
         this.getPlayerFromServer();
-        gameWindow = new GameWindow(this);
-        gameWindow.setVisible(true);
+        this.gameWindow = new GameWindow(this);
+        this.gameWindow.setVisible(true);
         joinFrame.dispose(); // Dispose the join frame after successful connection
     }
 
     public boolean isGameStarted() {
         if (!gameStarted) {
             send("IS_GAME_STARTED");
-            
-            try {
-                processServerMessage(in.readLine());
-            } catch (IOException e) {
-                System.err.println("Error handling command from client: " + e.getMessage());
-            }
         }
 
         return gameStarted;
@@ -156,14 +136,6 @@ public class GameClient extends Thread {
     }
 
     public Boolean checkCurrentActivePlayer() {
-        send("IS_CURRENT_ACTIVE_PLAYER");
-
-        try {
-            processServerMessage(in.readLine());
-        } catch (IOException e) {
-            System.err.println("Error handling command from client: " + e.getMessage());
-        }
-
         return isCurrentActivePlayer;
     }
 
@@ -172,12 +144,6 @@ public class GameClient extends Thread {
             out.println("READY");
             if (this.player != null) {
                 this.player.isReady();
-            }
-
-            try {
-                processServerMessage(in.readLine());
-            } catch (IOException e) {
-                System.err.println("Error handling command from client: " + e.getMessage());
             }
         }
     }
@@ -203,6 +169,22 @@ public class GameClient extends Thread {
             System.out.print("KKM parts[0]: " + parts[0]);
             if (parts.length > 0) {
                 switch (parts[0]) {
+                    case "PASSWORD":
+                        if (parts.length == 2) {
+                            SwingUtilities.invokeLater(() -> {
+                                System.out.print("KKM parts[1]: " + parts[1]);
+                                System.out.print("KKM parts[1]: INVOKELATER");
+                                if (parts[1].equalsIgnoreCase("CORRECT")) {
+                                    System.out.print("KKM parts[1]: CORRECT <<<<<<");
+                                    this.openGameWindow();
+                                } else if (parts[1].equalsIgnoreCase("INCORRECT")) {
+                                    JOptionPane.showMessageDialog(joinFrame, "Password incorrect. Please try again.", "Login Failed", JOptionPane.ERROR_MESSAGE);
+                                }
+
+                                this.joinButton.setEnabled(true);
+                            });
+                        }
+                        break;
                     case "GETCURRENTPLAYER":
                         if (parts.length == 4) {
                             this.player.setReady(Boolean.valueOf(parts[1]));
@@ -212,20 +194,24 @@ public class GameClient extends Thread {
                             System.out.println("KKM: currentplayer: " + this.player.toString());
                         }
                         break;
-                    case "READY":
-                        if (parts.length == 2) {
-                            this.gameStarted = Boolean.valueOf(parts[1]);
-                            if (!this.gameStarted) {
-                                SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(gameWindow,
-                                    "Waiting for other players to be ready.", "Wait",
-                                    JOptionPane.INFORMATION_MESSAGE));
-                            } else {
-                                SwingUtilities.invokeLater(() -> {
-                                    gameWindow.notifyGameStarted();
-                                    gameWindow.getReadyButton().setEnabled(false); // Disable the Ready button when the game starts
-                                });
-                            }
-                        }
+                    case "GAME_STARTED":
+                        this.gameStarted = true;
+                        SwingUtilities.invokeLater(() -> {
+                            this.gameWindow.notifyGameStarted();
+                            this.gameWindow.getReadyButton().setEnabled(false); // Disable the Ready button when the game starts
+                        });
+
+                        // if (!this.gameStarted) {
+                        //     SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(gameWindow,
+                        //         "Waiting for other players to be ready.", "Wait",
+                        //         JOptionPane.INFORMATION_MESSAGE));
+                        // } else {
+                        //     SwingUtilities.invokeLater(() -> {
+                        //         gameWindow.notifyGameStarted();
+                        //         gameWindow.getReadyButton().setEnabled(false); // Disable the Ready button when the game starts
+                        //     });
+                        // }
+                        break;
                     case "IS_GAME_STARTED":
                         System.out.println("KKM in game started: <<<<<");
                         if (parts.length == 2) {
@@ -233,14 +219,22 @@ public class GameClient extends Thread {
                             System.out.println("KKM in game started: " + String.valueOf(gameStarted));
                         }
                         break;
-                    case "IS_CURRENT_ACTIVE_PLAYER":
+                    case "ACTIVE_STATUS_UPDATE":
                         if (parts.length == 2) {
                             this.isCurrentActivePlayer = Boolean.valueOf(parts[1]);
-                        }
+                        } 
                         break;
                     default:
                         System.err.println("Received unknown command: " + parts[0]);
                         break;
+                }
+            }
+            
+            if (!this.stopServerListener) {
+                try {
+                    processServerMessage(in.readLine());
+                } catch (IOException e) {
+                    System.err.println("Error handling command from client: " + e.getMessage());
                 }
             }
         }

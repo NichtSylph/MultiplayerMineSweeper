@@ -77,11 +77,11 @@ public class GameServer {
             clientHandlers.add(clientHandler);
             players.add(player);
 
-            out.println("Password correct"); // Send response to client
+            out.println("PASSWORD CORRECT"); // Send response to client
             System.out.println("Client connected: " + clientSocket.getInetAddress().getHostAddress());
             // broadcastPlayerCount();
         } else {
-            out.println("Password incorrect"); // Send response to client
+            out.println("PASSWORD INCORRECT"); // Send response to client
             clientSocket.close();
             System.out.println("Incorrect password attempt or max players reached. Connection denied.");
         }
@@ -129,7 +129,7 @@ public class GameServer {
     //     broadcastMessage("PLAYERS_CONNECTED " + players.size());
     // }
 
-    public synchronized Boolean playerReadyCheckGameStatus(Player player) {
+    public synchronized void playerReadyCheckGameStatus(Player player) {
         for (Player p : this.players) {
             if (p.getPlayerNumber() == player.getPlayerNumber()) {
                 this.players.get(this.players.indexOf(p)).isReady();
@@ -137,9 +137,7 @@ public class GameServer {
         }
         if (!gameStarted && readyPlayers.incrementAndGet() == players.size()) {
             startGame();
-        }
-        
-        return gameStarted;
+        }        
     }
 
     private void startGame() {
@@ -147,6 +145,9 @@ public class GameServer {
             gameStarted = true;
             gameBoard.startGame();
             currentPlayerIndex.set(0);
+            this.broadcastMessage("GAME_STARTED");
+            // KKM
+            this.clientHandlers.get(0).setActiveStatus(true);
         }
     }
 

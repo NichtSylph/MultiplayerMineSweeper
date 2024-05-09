@@ -9,6 +9,7 @@ public class ClientHandler implements Runnable {
     private PrintWriter out;
     private BufferedReader in;
     private Player player;
+    private Boolean isCurrentActivePlayer = false;
 
     public ClientHandler(Socket socket, GameServer server, Player player) {
         this.clientSocket = socket;
@@ -54,7 +55,7 @@ public class ClientHandler implements Runnable {
                     break;
                 case "READY":
                     this.player.isReady();
-                    sendMessage("READY " + server.playerReadyCheckGameStatus(this.player));
+                    this.server.playerReadyCheckGameStatus(this.player);
                     break;
                 case "GETCURRENTPLAYER":
                     sendMessage("GETCURRENTPLAYER " + 
@@ -66,9 +67,6 @@ public class ClientHandler implements Runnable {
                     break;
                 case "IS_GAME_STARTED":
                     sendMessage("IS_GAME_STARTED " + String.valueOf(server.getGameStarted()));
-                    break;
-                case "IS_CURRENT_ACTIVE_PLAYER":
-                    sendMessage("IS_CURRENT_ACTIVE_PLAYER " + String.valueOf(server.isPlayerTurn(player)));
                     break;
                 case "ENDTURN":
                     server.switchTurns();
@@ -122,5 +120,10 @@ public class ClientHandler implements Runnable {
         } catch (IOException e) {
             System.err.println("Error closing connection: " + e.getMessage());
         }
+    }
+
+    public void setActiveStatus(Boolean status) {
+        sendMessage("ACTIVE_STATUS_UPDATE " + String.valueOf(status));
+        this.isCurrentActivePlayer = status;
     }
 }
