@@ -53,10 +53,16 @@ public class ClientHandler implements Runnable {
                     handleFlagCommand(parts);
                     break;
                 case "READY":
-                    server.playerReady(player);
+                    this.player.isReady();
+                    sendMessage("READY " + server.playerReadyCheckGameStatus(this.player));
                     break;
-                case "GET_CURRENT_PLAYER_NUMBER":
-                    sendMessage("CURRENT_PLAYER_NUMBER " + String.valueOf(player.getPlayerNumber()));
+                case "GETCURRENTPLAYER":
+                    sendMessage("GETCURRENTPLAYER " + 
+                        String.valueOf(player.isReady()) + 
+                        " " +
+                        String.valueOf(player.getPlayerNumber()) +
+                        " " +
+                        String.valueOf(player.getPassword()));
                     break;
                 case "IS_GAME_STARTED":
                     sendMessage("IS_GAME_STARTED " + String.valueOf(server.getGameStarted()));

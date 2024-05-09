@@ -79,7 +79,7 @@ public class GameServer {
 
             out.println("Password correct"); // Send response to client
             System.out.println("Client connected: " + clientSocket.getInetAddress().getHostAddress());
-            broadcastPlayerCount();
+            // broadcastPlayerCount();
         } else {
             out.println("Password incorrect"); // Send response to client
             clientSocket.close();
@@ -110,7 +110,7 @@ public class GameServer {
             clientHandlers.add(clientHandler);
             players.add(newPlayer);
             clientHandler.sendMessage("PLAYER_NUMBER " + newPlayer.getPlayerNumber());
-            broadcastPlayerCount();
+            // broadcastPlayerCount();
         } else {
             System.out.println("Incorrect password attempt or max players reached. Connection denied.");
             try {
@@ -125,25 +125,28 @@ public class GameServer {
         return this.players;
     }
 
-    private void broadcastPlayerCount() {
-        broadcastMessage("PLAYERS_CONNECTED " + players.size());
-    }
+    // private void broadcastPlayerCount() {
+    //     broadcastMessage("PLAYERS_CONNECTED " + players.size());
+    // }
 
-    public synchronized void playerReady(Player player) {
+    public synchronized Boolean playerReadyCheckGameStatus(Player player) {
+        for (Player p : this.players) {
+            if (p.getPlayerNumber() == player.getPlayerNumber()) {
+                this.players.get(this.players.indexOf(p)).isReady();
+            }
+        }
         if (!gameStarted && readyPlayers.incrementAndGet() == players.size()) {
             startGame();
-        } else if (!gameStarted && players.size() > 1) {
-            sendToPlayer(player, "WAITING_FOR_PLAYERS");
         }
+        
+        return gameStarted;
     }
 
     private void startGame() {
         if (!gameStarted) {
             gameStarted = true;
-            broadcastMessage("GAME_STARTED");
             gameBoard.startGame();
             currentPlayerIndex.set(0);
-            broadcastTurnChange();
         }
     }
 
@@ -216,7 +219,7 @@ public class GameServer {
     public void handlePlayerQuit(Player player) {
         players.remove(player);
         clientHandlers.removeIf(handler -> handler.getPlayer().equals(player));
-        broadcastPlayerCount();
+        // broadcastPlayerCount();
     }
 
     public GameBoard getGameBoard() {

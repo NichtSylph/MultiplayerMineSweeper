@@ -10,21 +10,30 @@ import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
-public class GameClient {
+public class GameClient extends Thread {
     private JFrame joinFrame;
     private JTextField ipTextField, portTextField, passwordTextField;
     private GameWindow gameWindow;
     private PrintWriter out;
     private BufferedReader in;
     private Socket socket;
-    private Player player;
+    private Player player = new Player();
     private int score = 0;
-    private boolean gameStarted;
+    private boolean gameStarted = false;
     private boolean isCurrentActivePlayer;
 
     public GameClient() {
-        this.player = new Player();
         createJoinFrame();
+    }
+
+    public void getPlayerFromServer() {
+        send("GETCURRENTPLAYER");
+
+        try {
+            processServerMessage(in.readLine());
+        } catch (IOException e) {
+            System.err.println("Error handling command from client: " + e.getMessage());
+        }
     }
 
     private void createJoinFrame() {
@@ -88,8 +97,7 @@ public class GameClient {
                 SwingUtilities.invokeLater(() -> {
                     if ("Password incorrect".equals(response)) {
                         JOptionPane.showMessageDialog(joinFrame, "Password incorrect. Please try again.", "Login Failed", JOptionPane.ERROR_MESSAGE);
-                    } else if ("Password correct".equals(response)) {
-                        getPlayerNumber();
+                    } else if ("Password correct".equals(response)) {  
                         openGameWindow(); // Opens the game window if the password is correct
                     } else {
                         JOptionPane.showMessageDialog(joinFrame, "Unexpected response from server.", "Error", JOptionPane.ERROR_MESSAGE);
@@ -119,40 +127,28 @@ public class GameClient {
     }
     
     private void openGameWindow() {
+        this.getPlayerFromServer();
         gameWindow = new GameWindow(this);
         gameWindow.setVisible(true);
         joinFrame.dispose(); // Dispose the join frame after successful connection
     }
-    
-    public Player getCurrentPlayer() {
-        return isCurrentActivePlayer ? player : null;
-    }
-    
-    public Integer getPlayerNumber() {
-        Player currentPlayer = getCurrentPlayer();
-        if (currentPlayer != null) {
-            return currentPlayer.getPlayerNumber();
-        } else {
-            send("GET_CURRENT_PLAYER_NUMBER");
+
+    public boolean isGameStarted() {
+        if (!gameStarted) {
+            send("IS_GAME_STARTED");
+            
             try {
                 processServerMessage(in.readLine());
             } catch (IOException e) {
                 System.err.println("Error handling command from client: " + e.getMessage());
             }
-            return currentPlayer != null ? currentPlayer.getPlayerNumber() : null;
-        }
-    }
-
-    public boolean isGameStarted() {
-        send("IS_GAME_STARTED");
-        
-        try {
-            processServerMessage(in.readLine());
-        } catch (IOException e) {
-            System.err.println("Error handling command from client: " + e.getMessage());
         }
 
         return gameStarted;
+    }
+
+    public Integer getPlayerNumber() {
+        return this.player.getPlayerNumber();
     }
 
     public void endTurn() {
@@ -174,6 +170,15 @@ public class GameClient {
     public void sendReady() {
         if (out != null) {
             out.println("READY");
+            if (this.player != null) {
+                this.player.isReady();
+            }
+
+            try {
+                processServerMessage(in.readLine());
+            } catch (IOException e) {
+                System.err.println("Error handling command from client: " + e.getMessage());
+            }
         }
     }
 
@@ -189,27 +194,48 @@ public class GameClient {
         }
     }
 
-    private void processServerMessage(String inputLine) {
+    private Boolean processServerMessage(String inputLine) {
+        System.out.print("KKM: " + inputLine);
         if (inputLine != null) {
             String[] parts = inputLine.split(" ");
+
+            System.out.print("KKM parts: " + parts);
+            System.out.print("KKM parts[0]: " + parts[0]);
             if (parts.length > 0) {
                 switch (parts[0]) {
-                    case "CURRENT_PLAYER_NUMBER":
-                        if (parts.length == 2) {
-                            Player currentPlayer = getCurrentPlayer();
-                            if (currentPlayer != null) {
-                                currentPlayer.setPlayerNumber(Integer.valueOf(parts[1]));
-                            }
+                    case "GETCURRENTPLAYER":
+                        if (parts.length == 4) {
+                            this.player.setReady(Boolean.valueOf(parts[1]));
+                            this.player.setPlayerNumber(Integer.valueOf(parts[2]));
+                            this.player.setPassword(parts[3]);
+
+                            System.out.println("KKM: currentplayer: " + this.player.toString());
                         }
                         break;
+                    case "READY":
+                        if (parts.length == 2) {
+                            this.gameStarted = Boolean.valueOf(parts[1]);
+                            if (!this.gameStarted) {
+                                SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(gameWindow,
+                                    "Waiting for other players to be ready.", "Wait",
+                                    JOptionPane.INFORMATION_MESSAGE));
+                            } else {
+                                SwingUtilities.invokeLater(() -> {
+                                    gameWindow.notifyGameStarted();
+                                    gameWindow.getReadyButton().setEnabled(false); // Disable the Ready button when the game starts
+                                });
+                            }
+                        }
                     case "IS_GAME_STARTED":
-                        if (parts.length == 1) {
-                            gameStarted = Boolean.valueOf(parts[1]);
+                        System.out.println("KKM in game started: <<<<<");
+                        if (parts.length == 2) {
+                            this.gameStarted = Boolean.valueOf(parts[1]);
+                            System.out.println("KKM in game started: " + String.valueOf(gameStarted));
                         }
                         break;
                     case "IS_CURRENT_ACTIVE_PLAYER":
-                        if (parts.length == 1) {
-                            isCurrentActivePlayer = Boolean.valueOf(parts[1]);
+                        if (parts.length == 2) {
+                            this.isCurrentActivePlayer = Boolean.valueOf(parts[1]);
                         }
                         break;
                     default:
@@ -218,6 +244,7 @@ public class GameClient {
                 }
             }
         }
+        return true;
     }
 
     public void send(String message) {
