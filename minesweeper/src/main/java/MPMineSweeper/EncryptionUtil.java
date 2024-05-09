@@ -1,7 +1,7 @@
 package MPMineSweeper;
+
 import java.security.*;
 import javax.crypto.Cipher;
-
 
 public class EncryptionUtil {
     public static KeyPair generateRSAKeyPair() throws NoSuchAlgorithmException {
