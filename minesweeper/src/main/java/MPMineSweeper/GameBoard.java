@@ -47,7 +47,7 @@ public class GameBoard {
         }
     }
 
-    public boolean toggleFlag(int x, int y, boolean isFlagged, Player player) {
+    public boolean toggleFlag(int x, int y, boolean isFlagged) {
         if (x < 0 || x >= width || y < 0 || y >= height || gameOver) {
             return false; // Cell is out of bounds or game is over
         }
@@ -55,11 +55,6 @@ public class GameBoard {
         Cell cell = cells[y][x];
         if (cell.isRevealed()) {
             return false; // Can't flag a cell that's already revealed
-        }
-    
-        // Check if it's the player's turn
-        if (player != null && !player.isCurrentTurn()) {
-            return false; // It's not the player's turn
         }
     
         cell.setFlagged(isFlagged);
@@ -94,21 +89,16 @@ public class GameBoard {
         return count;
     }
 
-    public boolean revealCell(int x, int y, Player player) {
+    public boolean revealCell(int x, int y) {
         if (x < 0 || x >= width || y < 0 || y >= height || gameOver) {
             return false; // Cell is out of bounds or game is over
         }
-
+    
         Cell cell = cells[y][x];
         if (cell.isRevealed()) {
             return false; // Cell is already revealed
         }
-
-        // Check if it's the player's turn
-        if (player != null && !player.isCurrentTurn()) {
-            return false; // It's not the player's turn
-        }
-
+    
         cell.setRevealed(true);
         if (cell.isMine()) {
             bombRevealedCount++;
@@ -117,11 +107,11 @@ public class GameBoard {
             }
             return true;
         }
-
+    
         if (cell.getNeighboringMines() == 0) {
             revealSurroundingCells(x, y);
         }
-
+    
         return false;
     }
 
@@ -133,7 +123,7 @@ public class GameBoard {
                 int nx = x + j;
                 int ny = y + i;
                 if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-                    revealCell(nx, ny, null);
+                    revealCell(nx, ny);
                 }
             }
         }

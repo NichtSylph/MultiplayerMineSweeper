@@ -93,8 +93,8 @@ public class GameWindow extends JFrame {
 
     public void handleTurnChange(int currentPlayerNumber) {
         SwingUtilities.invokeLater(() -> {
-            player.setCurrentTurn(player.getPlayerNumber() == currentPlayerNumber);
-            updateTurnStatus(player.isCurrentTurn());
+            boolean isCurrentTurn = player.getPlayerNumber() == currentPlayerNumber;
+            updateTurnStatus(isCurrentTurn);
         });
     }
 

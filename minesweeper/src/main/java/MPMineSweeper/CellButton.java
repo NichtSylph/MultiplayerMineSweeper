@@ -69,22 +69,22 @@ public class CellButton extends JButton {
                     JOptionPane.WARNING_MESSAGE);
             return;
         }
-
+    
         Player currentPlayer = gameClient.getCurrentPlayer();
         System.out.println("Attempting to reveal cell: Player " + currentPlayer.getPlayerNumber() +
                 ", Current player: " + gameClient.getCurrentPlayer().getPlayerNumber());
-        if (currentPlayer.isCurrentTurn() && !cell.isRevealed() && !cell.isFlagged()) {
+        if (!cell.isRevealed() && !cell.isFlagged()) {
             gameClient.sendPlayerMove(x, y);
             // Update the cell's state
             cell.setRevealed(true);
             // Reveal the cell in the UI
             revealCell(cell.isMine(), cell.getNeighboringMines());
-        } else if (!currentPlayer.isCurrentTurn()) {
+        } else {
             JOptionPane.showMessageDialog(this, "Wait for your turn, Player " + currentPlayer.getPlayerNumber() + "!",
                     "Turn Info", JOptionPane.INFORMATION_MESSAGE);
         }
     }
-
+    
     private void toggleFlag() {
         if (!gameClient.isGameStarted()) {
             JOptionPane.showMessageDialog(this, "The game has not started yet. Please press the Ready button.", "IDLE",

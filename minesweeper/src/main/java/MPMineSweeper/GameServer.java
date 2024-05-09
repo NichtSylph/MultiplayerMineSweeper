@@ -162,7 +162,7 @@ public class GameServer {
             return;
         }
 
-        if (gameBoard.revealCell(x, y, player)) {
+        if (gameBoard.revealCell(x, y)) {
             checkGameOver();
         }
 
@@ -220,7 +220,7 @@ public class GameServer {
     }
 
     public void toggleFlag(int x, int y, boolean isFlagged, Player player) {
-        if (gameBoard.toggleFlag(x, y, isFlagged, player)) {
+        if (gameBoard.toggleFlag(x, y, isFlagged)) {
             checkGameOver();
         }
         broadcastUpdatedGameState();
