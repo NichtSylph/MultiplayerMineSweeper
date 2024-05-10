@@ -5,81 +5,56 @@ public class MoveEvaluator {
     private Player[] players;
     private int playerIndex; // Index to keep track of whose turn it is
 
-    /**
-     * Constructor for MoveEvaluator.
-     *
-     * @param gameBoard The game board.
-     * @param players The array of players.
-     */
     public MoveEvaluator(GameBoard gameBoard, Player[] players) {
         this.gameBoard = gameBoard;
         this.players = players;
         this.playerIndex = 0; // Start with the first player
     }
 
-    /**
-     * Evaluates a move made by a player at the given coordinates.
-     *
-     * @param x The x-coordinate of the move.
-     * @param y The y-coordinate of the move.
-     * @param player The player making the move.
-     * @return The result of the move.
-     */
     public MoveResult evaluateMove(int x, int y, Player player) {
-        // Check if the game has started and if it's the player's turn
-        if (!gameBoard.isGameStarted() || !player.equals(players[playerIndex])) {
-            return new MoveResult(false, false, 0, player); // Game not started or not the player's turn
+        if (!gameBoard.isGameStarted()) {
+            return new MoveResult(false, "Game not started", 0, player);
+        }
+        if (!player.equals(players[playerIndex])) {
+            return new MoveResult(false, "Not your turn", 0, player);
         }
 
         Cell cell = gameBoard.getCell(x, y);
-
         if (cell == null || cell.isRevealed()) {
-            return new MoveResult(false, false, 0, player); // Invalid move
+            return new MoveResult(false, "Invalid move", 0, player);
         }
 
         cell.setRevealed(true);
         if (cell.isMine()) {
-            // Game over scenario
-            gameBoard.setGameOver(true); // Set the game over state
-            return new MoveResult(true, true, 0, player); // Hit a mine
+            gameBoard.setGameOver(true);
+            return new MoveResult(true, "Mine hit", 0, player);
         }
 
         int neighboringMines = cell.getNeighboringMines();
-        // Update the score based on your scoring rules.
-        player.incrementScore(neighboringMines); // Increment score based on neighboring mines
+        player.incrementScore(neighboringMines);
+        boolean allCleared = gameBoard.allNonMineCellsRevealed();
+        if (allCleared) {
+            gameBoard.setGameOver(true);
+            return new MoveResult(true, "All cells cleared", neighboringMines, player);
+        }
 
-        switchPlayer(); // Switch to the next player for the next turn
-
-        return new MoveResult(true, false, neighboringMines, player); // Safe move
+        switchPlayer();
+        return new MoveResult(true, "Safe move", neighboringMines, player);
     }
 
-    /**
-     * Switches the turn to the next player.
-     */
     private void switchPlayer() {
         playerIndex = (playerIndex + 1) % players.length;
     }
 
-    /**
-     * Inner class to represent the result of a move.
-     */
     public static class MoveResult {
         private boolean isValid;
-        private boolean isMine;
+        private String message;
         private int neighboringMines;
         private Player player;
 
-        /**
-         * Constructor for MoveResult.
-         *
-         * @param isValid Indicates if the move is valid.
-         * @param isMine Indicates if the move hit a mine.
-         * @param neighboringMines The number of neighboring mines.
-         * @param player The player who made the move.
-         */
-        public MoveResult(boolean isValid, boolean isMine, int neighboringMines, Player player) {
+        public MoveResult(boolean isValid, String message, int neighboringMines, Player player) {
             this.isValid = isValid;
-            this.isMine = isMine;
+            this.message = message;
             this.neighboringMines = neighboringMines;
             this.player = player;
         }
@@ -88,8 +63,8 @@ public class MoveEvaluator {
             return isValid;
         }
 
-        public boolean isMine() {
-            return isMine;
+        public String getMessage() {
+            return message;
         }
 
         public int getNeighboringMines() {

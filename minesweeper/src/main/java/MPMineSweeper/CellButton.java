@@ -19,126 +19,63 @@ public class CellButton extends JButton {
         }
     }
     private boolean isMarked; // Flag to check if the cell is marked with a flag
+    private boolean isRevealed; // Tracks whether the cell has been revealed
 
-    /**
-     * Constructor for creating a cell button.
-     *
-     * @param x          X-coordinate of the cell.
-     * @param y          Y-coordinate of the cell.
-     * @param gameClient Reference to the game client handling the game logic.
-     */
     public CellButton(int x, int y, GameClient gameClient) {
         this.x = x;
         this.y = y;
         this.gameClient = gameClient;
         this.isMarked = false;
-        setPreferredSize(new Dimension(32, 32)); // Set the preferred size of the button
+        this.isRevealed = false;
+        setPreferredSize(new Dimension(32, 32));
         setBackground(Color.LIGHT_GRAY);
         setOpaque(true);
         setBorderPainted(true);
         setBorder(new LineBorder(Color.BLACK));
 
-        // Add mouse listener for right-click to toggle flag
+        // Add mouse listener for right-click to toggle flag and left-click to reveal
         addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (e.getButton() == MouseEvent.BUTTON3) { // Right-click
                     toggleFlag();
+                } else if (e.getButton() == MouseEvent.BUTTON1 && !isRevealed && !isMarked) { // Left-click
+                    gameClient.sendPlayerMove(CellButton.this.x, CellButton.this.y);
                 }
             }
         });
     }
 
-<<<<<<< HEAD
-    /**
-     * Toggles the flag on the cell when right-clicked.
-     */
-=======
-    private static ImageIcon loadIcon(String path) {
-        java.net.URL imgURL = CellButton.class.getClassLoader().getResource(path);
-        if (imgURL != null) {
-            return new ImageIcon(imgURL);
-        } else {
-            System.err.println("Couldn't find file: " + path + " -- Full path attempted: " + CellButton.class.getClassLoader().getResource("").getPath());
-            return null;
-        }
-    }
-
-    public void revealCellAction() {
-        if (!gameClient.isGameStarted()) {
-            JOptionPane.showMessageDialog(this, "The game has not started yet. If you haven't done so, please press the Ready button.", "IDLE",
-                    JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-    
-        Integer currentPlayerNumber = gameClient.getPlayerNumber();
-        System.out.println("Attempting to reveal cell: Player " + currentPlayerNumber +
-                ", Current player: " + currentPlayerNumber);
-
-        if (gameClient.checkCurrentActivePlayer() && !cell.isRevealed() && !cell.isFlagged()) {
-            gameClient.sendPlayerMove(x, y);
-            // Update the cell's state
-            cell.setRevealed(true);
-            // Reveal the cell in the UI
-            revealCell(cell.isMine(), cell.getNeighboringMines());
-        } else {
-            JOptionPane.showMessageDialog(this, "Wait for your turn, Player " + currentPlayerNumber + "!",
-                    "Turn Info", JOptionPane.INFORMATION_MESSAGE);
-        }
-    }
-    
->>>>>>> 7b3d4b5 (working)
     private void toggleFlag() {
-        if (!isEnabled())
-            return; // Can't mark/unmark revealed cells
+        if (!isEnabled() || isRevealed) // Check if the cell is revealed
+            return;
 
         isMarked = !isMarked;
         setIcon(isMarked ? flagIcon : null);
         setBackground(isMarked ? Color.YELLOW : Color.LIGHT_GRAY);
-        gameClient.sendFlagChange(getXCoordinate(), getYCoordinate(), isMarked);
+        gameClient.sendFlagChange(x, y, isMarked);
     }
 
-    /**
-     * Gets the X-coordinate of this cell.
-     *
-     * @return X-coordinate of the cell.
-     */
-    public int getXCoordinate() {
-        return x;
+    public boolean isRevealed() {
+        return isRevealed;
     }
 
-    /**
-     * Gets the Y-coordinate of this cell.
-     *
-     * @return Y-coordinate of the cell.
-     */
-    public int getYCoordinate() {
-        return y;
-    }
-
-    /**
-     * Reveals the cell and updates its appearance based on whether it is a mine and
-     * the number of neighboring mines.
-     *
-     * @param isMine           Indicates whether this cell is a mine.
-     * @param neighboringMines The number of neighboring mines.
-     */
     public void revealCell(boolean isMine, int neighboringMines) {
-        setEnabled(false);
-        if (isMine) {
-            setBackground(Color.RED);
-            setIcon(bombIcon); // Set bomb icon
-            System.out.println("Mine revealed");
-        } else {
-            setBackground(Color.WHITE);
-            if (neighboringMines > 0) {
-                setIcon(numberIcons[neighboringMines - 1]); // Set number icon
-                System.out.println("Setting number icon for mines: " + neighboringMines);
+        SwingUtilities.invokeLater(() -> {
+            isRevealed = true; // Mark the cell as revealed
+            setEnabled(false);
+            if (isMine) {
+                setBackground(Color.RED);
+                setIcon(bombIcon);
             } else {
-                setIcon(null); // Clear icon if no neighboring mines
-                System.out.println("No neighboring mines");
+                setBackground(Color.WHITE);
+                if (neighboringMines > 0) {
+                    setIcon(numberIcons[neighboringMines - 1]);
+                } else {
+                    setIcon(null);
+                }
             }
-        }
+            repaint();
+        });
     }
-
 }

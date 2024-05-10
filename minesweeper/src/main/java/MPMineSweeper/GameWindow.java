@@ -107,12 +107,24 @@ public class GameWindow extends JFrame {
      * @param y The y-coordinate of the cell.
      */
     private void handleCellClick(int x, int y) {
-        if (gameClient.getCurrentPlayerNumber() == playerNumber) {
-            gameClient.sendPlayerMove(x, y);
-            updateCellStateBasedOnPlayerAction(x, y);
-        } else {
-            JOptionPane.showMessageDialog(this, "It's not your turn!", "Turn Info", JOptionPane.INFORMATION_MESSAGE);
+        // Check if the game has started
+        if (!gameClient.isGameStarted()) {
+            JOptionPane.showMessageDialog(this, "The game hasn't started yet!", "Game Info", JOptionPane.WARNING_MESSAGE);
+            return;
         }
+    
+        System.out.println("Current player number: " + gameClient.getCurrentPlayerNumber()); // Debug log
+        System.out.println("This player's number: " + playerNumber); // Debug log
+    
+        if (gameClient.getCurrentPlayerNumber() != playerNumber) {
+            // Notify the user that it's not their turn
+            JOptionPane.showMessageDialog(this, "It's not your turn!", "Turn Info", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+    
+        // Proceed with making a move if it is the player's turn
+        gameClient.sendPlayerMove(x, y);
+        updateCellStateBasedOnPlayerAction(x, y);
     }
 
     /**
@@ -182,7 +194,7 @@ public class GameWindow extends JFrame {
      */
     public void updatePlayerNumber(int playerNumber) {
         this.playerNumber = playerNumber;
-        playerCountLabel.setText("You are Player " + playerNumber);
+        playerCountLabel.setText("You are Player " + (playerNumber + 1));
     }
 
     /**
@@ -223,7 +235,6 @@ public class GameWindow extends JFrame {
                 break;
         }
     }
-    
 
     /**
      * Displays a message when a player quits the game.
@@ -240,7 +251,7 @@ public class GameWindow extends JFrame {
      *
      * @param currentPlayerNumber The number of the player whose turn it is now.
      */
-    public void handleTurnChange(String currentPlayerNumber) {
+    public void handleTurnChange(int currentPlayerNumber) {
         playerCountLabel.setText("It's Player " + currentPlayerNumber + "'s turn");
     }
 
@@ -263,20 +274,15 @@ public class GameWindow extends JFrame {
     private class CellActionListener implements ActionListener {
         private final int x;
         private final int y;
-
+    
         public CellActionListener(int x, int y) {
             this.x = x;
             this.y = y;
         }
-
+    
         @Override
         public void actionPerformed(ActionEvent e) {
-            if (gameClient.getCurrentPlayerNumber() == playerNumber) {
-                handleCellClick(x, y);
-            } else {
-                JOptionPane.showMessageDialog(GameWindow.this, "It's not your turn!", "Wait",
-                        JOptionPane.INFORMATION_MESSAGE);
-            }
+            handleCellClick(x, y);
         }
     }
 }

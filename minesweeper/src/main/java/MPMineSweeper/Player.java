@@ -1,7 +1,7 @@
 package MPMineSweeper;
 
 public class Player {
-    private String name;
+    private int playerNumber;
     private int score;
     private boolean isCurrentTurn; // To track if it's the player's turn.
     private boolean isReady = false; // To track if the player is ready.
@@ -9,10 +9,10 @@ public class Player {
     /**
      * Constructor for Player.
      *
-     * @param name The name of the player.
+     * @param playerNumber The Number of the player.
      */
-    public Player(String name) {
-        this.name = name;
+    public Player(int playerNumber) {
+        this.playerNumber = playerNumber;
         this.score = 0; // Initial score is set to 0.
     }
 
@@ -35,21 +35,21 @@ public class Player {
     }
 
     /**
-     * Gets the name of the player.
+     * Gets the number of the player.
      *
-     * @return The name of the player.
+     * @return The number of the player.
      */
-    public String getName() {
-        return name;
+    public int getPlayerNumber() {
+        return playerNumber;
     }
 
     /**
-     * Sets the name of the player.
+     * Sets the number of the player.
      *
-     * @param name The new name of the player.
+     * @param playerNumber The new number of the player.
      */
-    public void setName(String name) {
-        this.name = name;
+    public void setCurrentPlayerNumber(int playerNumber) {
+        this.playerNumber = playerNumber;
     }
 
     /**
