@@ -1,34 +1,84 @@
 package MPMineSweeper;
 
 public class Player {
+    private int playerNumber;
+    private String password;
+    private Integer score = 0;
+    private boolean isCurrentTurn; // To track if it's the player's turn.
     private boolean isReady = false; // To track if the player is ready.
-    private int playerNumber; // Unique identifier for the player
-    private String password; // Password for the player
 
-    public Player() {
+    /**
+     * Constructor for Player.
+     *
+     * @param playerNumber The Number of the player.
+     */
+    public Player(int playerNumber) {
+        this.playerNumber = playerNumber;
     }
 
+    public void setPassword(String passcode) {
+        this.password = passcode;
+    }
+
+    /**
+     * Sets the player's readiness for the game.
+     *
+     * @param ready The readiness status.
+     */
     public void setReady(boolean ready) {
         this.isReady = ready;
     }
 
+    public void setScore(Integer score) {
+        this.score = score;
+    }
+
+    public Integer getScore() {
+        return this.score;
+    }
+
+    /**
+     * Checks if the player is ready.
+     *
+     * @return True if the player is ready, false otherwise.
+     */
     public boolean isReady() {
         return this.isReady;
     }
 
+    /**
+     * Gets the number of the player.
+     *
+     * @return The number of the player.
+     */
     public int getPlayerNumber() {
         return playerNumber;
     }
 
-    public void setPlayerNumber(int playerNumber) {
+    /**
+     * Sets the number of the player.
+     *
+     * @param playerNumber The new number of the player.
+     */
+    public void setCurrentPlayerNumber(int playerNumber) {
         this.playerNumber = playerNumber;
     }
 
-    public String getPassword() {
-        return password;
+    /**
+     * Checks if it's currently this player's turn.
+     *
+     * @return True if it's the player's turn, false otherwise.
+     */
+    public boolean isCurrentTurn() {
+        return isCurrentTurn;
     }
 
-    public void setPassword(String password) {
-        this.password = password;
+    /**
+     * Sets the turn status for this player.
+     *
+     * @param isCurrentTurn True if it's the player's turn, false otherwise.
+     */
+    public void setCurrentTurn(boolean isCurrentTurn) {
+        this.isCurrentTurn = isCurrentTurn;
     }
 }

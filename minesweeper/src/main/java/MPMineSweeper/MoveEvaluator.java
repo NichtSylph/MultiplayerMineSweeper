@@ -3,72 +3,58 @@ package MPMineSweeper;
 public class MoveEvaluator {
     private GameBoard gameBoard;
     private Player[] players;
-    private int playerIndex;
+    private int playerIndex; // Index to keep track of whose turn it is
 
     public MoveEvaluator(GameBoard gameBoard, Player[] players) {
         this.gameBoard = gameBoard;
         this.players = players;
-        this.playerIndex = 0;
+        this.playerIndex = 0; // Start with the first player
     }
 
     public MoveResult evaluateMove(int x, int y, Player player) {
-        // Ensure the move is being made by the current player
+        if (!gameBoard.isGameStarted()) {
+            return new MoveResult(false, "Game not started", 0, player);
+        }
         if (!player.equals(players[playerIndex])) {
-            return new MoveResult(false, false, player);
+            return new MoveResult(false, "Not your turn", 0, player);
         }
 
         Cell cell = gameBoard.getCell(x, y);
         if (cell == null || cell.isRevealed()) {
-            return new MoveResult(false, false, player);
+            return new MoveResult(false, "Invalid move", 0, player);
         }
 
-        // Reveal the cell and check if it's a mine
-        boolean isMine = gameBoard.revealCell(x, y);
-        if (isMine) {
-            // gameBoard.setGameOver(true); // This line is removed
-        } else {
-            // If the cell is not a mine, recursively reveal adjacent cells if it has zero
-            // neighboring mines
-            if (cell.getNeighboringMines() == 0) {
-                revealAdjacentCells(x, y);
-            }
+        cell.setRevealed(true);
+        if (cell.isMine()) {
+            gameBoard.setGameOver(true);
+            return new MoveResult(true, "Mine hit", 0, player);
         }
 
-        return new MoveResult(true, isMine, player);
+        int neighboringMines = cell.getNeighboringMines();
+        boolean allCleared = gameBoard.allNonMineCellsRevealed();
+        if (allCleared) {
+            gameBoard.setGameOver(true);
+            return new MoveResult(true, "All cells cleared", neighboringMines, player);
+        }
+
+        switchPlayer();
+        return new MoveResult(true, "Safe move", neighboringMines, player);
     }
 
-    private void revealAdjacentCells(int x, int y) {
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dy = -1; dy <= 1; dy++) {
-                if (dx != 0 || dy != 0) {
-                    int newX = x + dx;
-                    int newY = y + dy;
-                    if (isValidCell(newX, newY)) {
-                        Cell adjacentCell = gameBoard.getCell(newX, newY);
-                        if (!adjacentCell.isRevealed() && !adjacentCell.isMine()) {
-                            adjacentCell.setRevealed(true);
-                            if (adjacentCell.getNeighboringMines() == 0) {
-                                revealAdjacentCells(newX, newY);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private boolean isValidCell(int x, int y) {
-        return x >= 0 && y >= 0 && x < gameBoard.getWidth() && y < gameBoard.getHeight();
+    private void switchPlayer() {
+        playerIndex = (playerIndex + 1) % players.length;
     }
 
     public static class MoveResult {
         private boolean isValid;
-        private boolean isMine;
+        private String message;
+        private int neighboringMines;
         private Player player;
 
-        public MoveResult(boolean isValid, boolean isMine, Player player) {
+        public MoveResult(boolean isValid, String message, int neighboringMines, Player player) {
             this.isValid = isValid;
-            this.isMine = isMine;
+            this.message = message;
+            this.neighboringMines = neighboringMines;
             this.player = player;
         }
 
@@ -76,8 +62,12 @@ public class MoveEvaluator {
             return isValid;
         }
 
-        public boolean isMine() {
-            return isMine;
+        public String getMessage() {
+            return message;
+        }
+
+        public int getNeighboringMines() {
+            return neighboringMines;
         }
 
         public Player getPlayer() {
