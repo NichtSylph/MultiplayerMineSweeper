@@ -194,7 +194,7 @@ public class GameWindow extends JFrame {
      */
     public void updatePlayerNumber(int playerNumber) {
         this.playerNumber = playerNumber;
-        playerCountLabel.setText("You are Player " + (playerNumber + 1));
+        playerCountLabel.setText("You are Player " + playerNumber);
     }
 
     /**
@@ -266,6 +266,11 @@ public class GameWindow extends JFrame {
                 cellButtons[y][x].setEnabled(enabled);
             }
         }
+    }
+
+    public void displayPlayerQuit(int playerNumber) {
+        JOptionPane.showMessageDialog(null, "Player " + playerNumber + " has quit the game.", "Notification",
+                JOptionPane.INFORMATION_MESSAGE);
     }
 
     /**

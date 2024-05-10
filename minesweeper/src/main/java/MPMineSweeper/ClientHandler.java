@@ -53,11 +53,9 @@ public class ClientHandler implements Runnable {
                 }
             }
         } catch (IOException e) {
-            if (server.isGameRunning()) {
-                System.err.println("Client disconnected: " + e.getMessage());
-            }
+            System.err.println("Client disconnected unexpectedly: " + e.getMessage());
         } finally {
-            server.removeClientHandler(this);
+            server.handlePlayerQuit(player);
             closeConnection();
         }
     }
@@ -73,7 +71,7 @@ public class ClientHandler implements Runnable {
         if (parts.length == 0) {
             return false; // Empty message, terminate connection
         }
-
+    
         String command = parts[0];
         switch (command) {
             case "MOVE":
@@ -88,6 +86,9 @@ public class ClientHandler implements Runnable {
             case "READY":
                 server.playerReady(player);
                 break;
+            case "PLAYER_QUIT":
+                handlePlayerQuitCommand(parts);
+                break;
             default:
                 System.err.println("Unknown command from client: " + command);
                 break;
@@ -95,6 +96,11 @@ public class ClientHandler implements Runnable {
         return true;
     }
 
+  private void handlePlayerQuitCommand(String[] parts) {
+    server.handlePlayerQuit(player);
+}
+
+    
     /**
      * Handles the 'MOVE' command from the client.
      *

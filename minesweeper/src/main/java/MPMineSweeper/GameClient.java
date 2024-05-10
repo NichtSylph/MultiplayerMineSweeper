@@ -87,6 +87,7 @@ public class GameClient {
     public boolean isGameStarted() {
         return gameStarted;
     }
+
     private class ServerListener implements Runnable {
         public void run() {
             try {
@@ -107,10 +108,28 @@ public class GameClient {
         try {
             SwingUtilities.invokeLater(() -> {
                 switch (parts[0]) {
+                    case "SERVER_FULL":
+                        JOptionPane.showMessageDialog(null, "Sorry, the server is full.", "Notification",
+                                JOptionPane.INFORMATION_MESSAGE);
+                        closeConnection();
+                        System.exit(0);
+                        break;
+                    case "GAME_IN_PROGRESS":
+                        JOptionPane.showMessageDialog(null, "Sorry, a game is currently in progress.", "Notification",
+                                JOptionPane.INFORMATION_MESSAGE);
+                        closeConnection();
+                        System.exit(0);
+                        break;
                     case "PLAYERS_CONNECTED":
                         int playerCount = Integer.parseInt(parts[1]);
                         if (gameWindow != null)
                             gameWindow.updatePlayerCount(playerCount);
+                        break;
+                    case "PLAYER_QUIT":
+                        int quitPlayerNumber = Integer.parseInt(parts[1]);
+                        System.out.println("Player " + quitPlayerNumber + " has quit the game.");
+                        if (gameWindow != null)
+                            gameWindow.displayPlayerQuit(quitPlayerNumber);
                         break;
                     case "GAME_STATE":
                         handleGameState(parts[1]);
@@ -188,7 +207,14 @@ public class GameClient {
         }
     }
 
+    public void sendQuitMessage() {
+        if (playerNumber != -1) { // Only send quit message if player number is set
+            sendMessage("QUIT " + playerNumber);
+        }
+    }
+
     public void closeConnection() {
+        sendQuitMessage(); // Send quit message before closing the connection
         try {
             if (in != null)
                 in.close();

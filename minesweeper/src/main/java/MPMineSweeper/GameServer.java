@@ -1,6 +1,7 @@
 package MPMineSweeper;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -22,11 +23,6 @@ public class GameServer {
     private static final int HEIGHT = 16;
     private static final int MINES = 40;
 
-    /**
-     * Constructor to initialize the game server.
-     * 
-     * @param port The port number on which the server will run.
-     */
     public GameServer(int port) {
         this.port = port;
         clientHandlers = new ArrayList<>();
@@ -39,18 +35,31 @@ public class GameServer {
         isRunning = true;
     }
 
-    /**
-     * Starts the game server and listens for incoming client connections.
-     */
     public void startServer() {
         try {
             serverSocket = new ServerSocket(port);
             System.out.println("Server running on port " + port);
+            final int MAX_PLAYERS = 4;
 
             new Thread(() -> {
                 while (isRunning) {
                     try {
                         Socket clientSocket = serverSocket.accept();
+                        if (gameStarted) {
+                            System.out.println("Game in progress. Not accepting new connections.");
+                            PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+                            out.println("GAME_IN_PROGRESS");
+                            clientSocket.close();
+                            continue;
+                        }
+                        if (players.size() >= MAX_PLAYERS) {
+                            System.out.println("Maximum players reached. Not accepting new connections.");
+                            PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+                            out.println("SERVER_FULL");
+                            clientSocket.close();
+                            continue;
+                        }
+
                         String clientAddress = clientSocket.getInetAddress().getHostAddress();
                         System.out.println("Client connected: " + clientAddress);
 
@@ -70,8 +79,6 @@ public class GameServer {
                             clientHandler.sendMessage("PLAYER_NUMBER " + newPlayer.getPlayerNumber());
                         }
 
-                        broadcastPlayerCount();
-
                     } catch (IOException e) {
                         System.err.println("Error accepting client connection: " + e.getMessage());
                     }
@@ -83,9 +90,6 @@ public class GameServer {
         }
     }
 
-    /**
-     * Closes the server socket.
-     */
     private void closeServerSocket() {
         try {
             if (serverSocket != null && !serverSocket.isClosed()) {
@@ -96,9 +100,6 @@ public class GameServer {
         }
     }
 
-    /**
-     * Stops the server and exits the application.
-     */
     public void stopServer() {
         isRunning = false;
         closeServerSocket();
@@ -106,29 +107,16 @@ public class GameServer {
         System.exit(0); // Exit the application
     }
 
-    /**
-     * Broadcasts a message to all connected clients.
-     *
-     * @param message The message to be sent.
-     */
     public void broadcastMessage(String message) {
         for (ClientHandler clientHandler : clientHandlers) {
             clientHandler.sendMessage(message);
         }
     }
 
-    /**
-     * Broadcasts the current player count to all connected clients.
-     */
     public void broadcastPlayerCount() {
         broadcastMessage("PLAYERS_CONNECTED " + players.size());
     }
 
-    /**
-     * Marks a player as ready and starts the game if all players are ready.
-     *
-     * @param player The player who is ready.
-     */
     public synchronized void playerReady(Player player) {
         if (!gameStarted) {
             player.setReady(true);
@@ -139,43 +127,29 @@ public class GameServer {
         }
     }
 
-    /**
-     * Notifies all clients that the game has started.
-     */
     private void sendGameStartedToAllClients() {
         for (ClientHandler handler : clientHandlers) {
             handler.sendMessage("GAME_STATE STARTED");
         }
     }
 
-    /**
-     * Starts the game if all players are ready.
-     */
     public synchronized void startGame() {
         if (!gameStarted && readyPlayers.get() == players.size()) {
             gameStarted = true;
-            currentPlayerIndex.set(0);  // Always start with the first player who joined
+            currentPlayerIndex.set(0); // Always start with the first player who joined
             gameBoard.reset(); // Ensure the game board is fresh at start
             sendGameStartedToAllClients();
-            switchTurns();  // Inform players whose turn it is
+            switchTurns(); // Inform players whose turn it is
         }
     }
-    
 
-    /**
-     * Processes a player move and updates the game state accordingly.
-     *
-     * @param player The player who made the move.
-     * @param x      The x-coordinate of the move.
-     * @param y      The y-coordinate of the move.
-     */
     public synchronized void processPlayerMove(Player player, int x, int y) {
         System.out.println("Processing move for player " + player.getPlayerNumber() + " at position " + x + ", " + y);
         if (!gameStarted) {
             System.out.println("Game has not started yet.");
             return;
         }
-    
+
         if (players.get(currentPlayerIndex.get()).equals(player)) {
             boolean mineHit = gameBoard.revealCell(x, y, player);
             System.out.println("Mine hit: " + mineHit);
@@ -198,13 +172,11 @@ public class GameServer {
                 }
             }
         } else {
-            System.out.println("It's not " + player.getPlayerNumber() + "'s turn, it's " + players.get(currentPlayerIndex.get()).getPlayerNumber() + "'s turn.");
+            System.out.println("It's not " + player.getPlayerNumber() + "'s turn, it's "
+                    + players.get(currentPlayerIndex.get()).getPlayerNumber() + "'s turn.");
         }
     }
-    
-    /**
-     * Ends the game, notifying all clients and closing connections.
-     */
+
     private void endGame() {
         gameStarted = false;
         updateAndBroadcastGameState();
@@ -226,13 +198,6 @@ public class GameServer {
         stopServer(); // Stop the server
     }
 
-    /**
-     * Sends the state of a specific cell to a client.
-     *
-     * @param clientHandler The client handler to send the state to.
-     * @param x             The x-coordinate of the cell.
-     * @param y             The y-coordinate of the cell.
-     */
     public void sendCellState(ClientHandler clientHandler, int x, int y) {
         Cell cell = gameBoard.getCell(x, y);
         if (cell != null) {
@@ -249,14 +214,6 @@ public class GameServer {
         broadcastMessage("UPDATE " + gameStateMessage);
     }
 
-    /**
-     * Toggles a flag on a cell and updates game state.
-     *
-     * @param x         The x-coordinate of the cell.
-     * @param y         The y-coordinate of the cell.
-     * @param isFlagged The flag status to set.
-     * @param player    The player who toggled the flag.
-     */
     public synchronized void toggleFlag(int x, int y, boolean isFlagged, Player player) {
         if (!gameStarted) {
             System.out.println("The game has not started yet. You cannot flag cells.");
@@ -266,13 +223,6 @@ public class GameServer {
         updateAndBroadcastGameState();
     }
 
-    /**
-     * Creates a message representing the current state of the game board.
-     * The message includes the cell's x, y coordinates, state, and the number of
-     * neighboring mines.
-     *
-     * @return A string representing the game state.
-     */
     private String createGameStateMessage() {
         StringBuilder sb = new StringBuilder();
         for (int y = 0; y < HEIGHT; y++) {
@@ -287,46 +237,45 @@ public class GameServer {
         return sb.toString();
     }
 
-    /**
-     * Switches the turn to the next player in the game.
-     */
     private void switchTurns() {
-        currentPlayerIndex.set((currentPlayerIndex.get() + 1) % players.size());
-        System.out.println("Current player index: " + currentPlayerIndex.get());
+        if (players.size() > 1) {
+            currentPlayerIndex.set((currentPlayerIndex.get() + 1) % players.size());
+            while (!clientHandlers.stream()
+                    .anyMatch(handler -> handler.getPlayer().equals(players.get(currentPlayerIndex.get())))) {
+                currentPlayerIndex.set((currentPlayerIndex.get() + 1) % players.size()); // Skip missing players
+            }
+        }
         int currentPlayerNumber = players.get(currentPlayerIndex.get()).getPlayerNumber();
         System.out.println("Current player number: " + currentPlayerNumber);
         broadcastMessage("TURN_CHANGED " + currentPlayerNumber);
     }
 
-    /**
-     * Handles the case when a player quits the game.
-     *
-     * @param player The player who quit.
-     */
     public synchronized void handlePlayerQuit(Player player) {
+        int index = players.indexOf(player);
+        boolean wasCurrentPlayer = index == currentPlayerIndex.get();
+    
         players.remove(player);
         clientHandlers.removeIf(handler -> handler.getPlayer().equals(player));
         broadcastMessage("PLAYER_QUIT " + player.getPlayerNumber());
         broadcastPlayerCount();
+    
         if (players.isEmpty()) {
             stopServer();
+        } else {
+            if (wasCurrentPlayer) {
+                if (players.size() > 0) {
+                    currentPlayerIndex.set((currentPlayerIndex.get() - 1 + players.size()) % players.size());
+                    switchTurns(); // Move to the next player immediately
+                    broadcastMessage("TURN_CHANGED " + players.get(currentPlayerIndex.get()).getPlayerNumber());
+                }
+            }
         }
     }
 
-    /**
-     * Removes a client handler when a client disconnects.
-     *
-     * @param handler The client handler to remove.
-     */
     public synchronized void removeClientHandler(ClientHandler handler) {
         clientHandlers.remove(handler);
     }
 
-    /**
-     * Checks if the game is currently running.
-     *
-     * @return True if the game is running, false otherwise.
-     */
     public boolean isGameRunning() {
         return isRunning;
     }
