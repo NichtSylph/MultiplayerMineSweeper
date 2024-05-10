@@ -49,9 +49,45 @@ public class CellButton extends JButton {
         });
     }
 
+<<<<<<< HEAD
     /**
      * Toggles the flag on the cell when right-clicked.
      */
+=======
+    private static ImageIcon loadIcon(String path) {
+        java.net.URL imgURL = CellButton.class.getClassLoader().getResource(path);
+        if (imgURL != null) {
+            return new ImageIcon(imgURL);
+        } else {
+            System.err.println("Couldn't find file: " + path + " -- Full path attempted: " + CellButton.class.getClassLoader().getResource("").getPath());
+            return null;
+        }
+    }
+
+    public void revealCellAction() {
+        if (!gameClient.isGameStarted()) {
+            JOptionPane.showMessageDialog(this, "The game has not started yet. If you haven't done so, please press the Ready button.", "IDLE",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+    
+        Integer currentPlayerNumber = gameClient.getPlayerNumber();
+        System.out.println("Attempting to reveal cell: Player " + currentPlayerNumber +
+                ", Current player: " + currentPlayerNumber);
+
+        if (gameClient.checkCurrentActivePlayer() && !cell.isRevealed() && !cell.isFlagged()) {
+            gameClient.sendPlayerMove(x, y);
+            // Update the cell's state
+            cell.setRevealed(true);
+            // Reveal the cell in the UI
+            revealCell(cell.isMine(), cell.getNeighboringMines());
+        } else {
+            JOptionPane.showMessageDialog(this, "Wait for your turn, Player " + currentPlayerNumber + "!",
+                    "Turn Info", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+    
+>>>>>>> 7b3d4b5 (working)
     private void toggleFlag() {
         if (!isEnabled())
             return; // Can't mark/unmark revealed cells

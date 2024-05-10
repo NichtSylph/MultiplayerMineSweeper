@@ -15,6 +15,12 @@ public class GameClient {
     private int playerNumber;
     private JFrame joinFrame;
     private boolean gameStarted = false;
+<<<<<<< HEAD
+=======
+    private boolean isCurrentActivePlayer;
+    private JButton joinButton;
+    private Boolean stopServerListener = false;
+>>>>>>> 7b3d4b5 (working)
 
     /**
      * Constructor for GameClient. Sets up the GUI for joining the game lobby.
@@ -26,6 +32,7 @@ public class GameClient {
         connectToServer();
     }
 
+<<<<<<< HEAD
     /**
      * Establishes connection to the Minesweeper game server.
      */
@@ -45,6 +52,10 @@ public class GameClient {
             System.err.println("Error connecting to server: " + e.getMessage());
             System.exit(1);
         }
+=======
+    public void getPlayerFromServer() {
+        send("GETCURRENTPLAYER");
+>>>>>>> 7b3d4b5 (working)
     }
 
     /**
@@ -56,11 +67,92 @@ public class GameClient {
         out.println(message);
     }
 
+<<<<<<< HEAD
     /**
      * Sends a signal to the server to start the game.
      */
     public void sendStartGame() {
         sendMessage("START_GAME");
+=======
+    private void handleJoinAction(ActionEvent e) {
+        this.joinButton = (JButton) e.getSource();
+        this.joinButton.setEnabled(false); // Disable the join button to prevent multiple clicks
+    
+        new Thread(() -> {
+            try {
+                String serverIP = ipTextField.getText().trim();
+                int serverPort = Integer.parseInt(portTextField.getText().trim());
+                String password = passwordTextField.getText().trim();
+    
+                socket = new Socket();
+                socket.connect(new InetSocketAddress(serverIP, serverPort), 5000); // 5000 ms timeout
+                out = new PrintWriter(socket.getOutputStream(), true);
+                in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+    
+                // Send password to server and flush to ensure it's sent immediately
+                out.println(password);
+                out.flush();
+    
+                // Read response from server
+                processServerMessage(in.readLine());
+    
+            } catch (SocketTimeoutException ex) {
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(joinFrame, "Connection timed out. Please check the IP and port and try again.",
+                            "Connection Error", JOptionPane.ERROR_MESSAGE);
+                    joinButton.setEnabled(true);
+                });
+            } catch (IOException ex) {
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(joinFrame, "Unable to connect to server. Please check your network connection and server status.",
+                            "Connection Error", JOptionPane.ERROR_MESSAGE);
+                    joinButton.setEnabled(true);
+                });
+            } catch (NumberFormatException ex) {
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(joinFrame, "Please enter a valid port number.",
+                            "Invalid Input", JOptionPane.ERROR_MESSAGE);
+                    joinButton.setEnabled(true);
+                });
+            }
+        }).start();
+    }
+    
+    private void openGameWindow() {
+        this.getPlayerFromServer();
+        this.gameWindow = new GameWindow(this);
+        this.gameWindow.setVisible(true);
+        joinFrame.dispose(); // Dispose the join frame after successful connection
+    }
+
+    public boolean isGameStarted() {
+        if (!gameStarted) {
+            send("IS_GAME_STARTED");
+        }
+
+        return gameStarted;
+    }
+
+    public Integer getPlayerNumber() {
+        return this.player.getPlayerNumber();
+    }
+
+    public void endTurn() {
+        send("END_TURN");
+    }
+
+    public Boolean checkCurrentActivePlayer() {
+        return isCurrentActivePlayer;
+    }
+
+    public void sendReady() {
+        if (out != null) {
+            out.println("READY");
+            if (this.player != null) {
+                this.player.isReady();
+            }
+        }
+>>>>>>> 7b3d4b5 (working)
     }
 
     /**
@@ -101,6 +193,7 @@ public class GameClient {
         sendMessage("READY " + playerNumber);
     }
 
+<<<<<<< HEAD
     /**
      * Requests the current state of a specific cell from the server.
      *
@@ -138,11 +231,83 @@ public class GameClient {
                 String fromServer;
                 while ((fromServer = in.readLine()) != null) {
                     processServerMessage(fromServer);
+=======
+            System.out.print("KKM parts: " + parts);
+            System.out.print("KKM parts[0]: " + parts[0]);
+            if (parts.length > 0) {
+                switch (parts[0]) {
+                    case "PASSWORD":
+                        if (parts.length == 2) {
+                            SwingUtilities.invokeLater(() -> {
+                                System.out.print("KKM parts[1]: " + parts[1]);
+                                System.out.print("KKM parts[1]: INVOKELATER");
+                                if (parts[1].equalsIgnoreCase("CORRECT")) {
+                                    System.out.print("KKM parts[1]: CORRECT <<<<<<");
+                                    this.openGameWindow();
+                                } else if (parts[1].equalsIgnoreCase("INCORRECT")) {
+                                    JOptionPane.showMessageDialog(joinFrame, "Password incorrect. Please try again.", "Login Failed", JOptionPane.ERROR_MESSAGE);
+                                }
+
+                                this.joinButton.setEnabled(true);
+                            });
+                        }
+                        break;
+                    case "GETCURRENTPLAYER":
+                        if (parts.length == 4) {
+                            this.player.setReady(Boolean.valueOf(parts[1]));
+                            this.player.setPlayerNumber(Integer.valueOf(parts[2]));
+                            this.player.setPassword(parts[3]);
+
+                            System.out.println("KKM: currentplayer: " + this.player.toString());
+                        }
+                        break;
+                    case "GAME_STARTED":
+                        this.gameStarted = true;
+                        SwingUtilities.invokeLater(() -> {
+                            this.gameWindow.notifyGameStarted();
+                            this.gameWindow.getReadyButton().setEnabled(false); // Disable the Ready button when the game starts
+                        });
+
+                        // if (!this.gameStarted) {
+                        //     SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(gameWindow,
+                        //         "Waiting for other players to be ready.", "Wait",
+                        //         JOptionPane.INFORMATION_MESSAGE));
+                        // } else {
+                        //     SwingUtilities.invokeLater(() -> {
+                        //         gameWindow.notifyGameStarted();
+                        //         gameWindow.getReadyButton().setEnabled(false); // Disable the Ready button when the game starts
+                        //     });
+                        // }
+                        break;
+                    case "IS_GAME_STARTED":
+                        System.out.println("KKM in game started: <<<<<");
+                        if (parts.length == 2) {
+                            this.gameStarted = Boolean.valueOf(parts[1]);
+                            System.out.println("KKM in game started: " + String.valueOf(gameStarted));
+                        }
+                        break;
+                    case "ACTIVE_STATUS_UPDATE":
+                        if (parts.length == 2) {
+                            this.isCurrentActivePlayer = Boolean.valueOf(parts[1]);
+                        } 
+                        break;
+                    default:
+                        System.err.println("Received unknown command: " + parts[0]);
+                        break;
+>>>>>>> 7b3d4b5 (working)
                 }
             } catch (IOException e) {
                 System.err.println("Error reading from server: " + e.getMessage());
             } finally {
                 closeConnection();
+            }
+            
+            if (!this.stopServerListener) {
+                try {
+                    processServerMessage(in.readLine());
+                } catch (IOException e) {
+                    System.err.println("Error handling command from client: " + e.getMessage());
+                }
             }
         }
     }

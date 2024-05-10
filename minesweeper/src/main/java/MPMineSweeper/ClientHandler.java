@@ -9,6 +9,7 @@ public class ClientHandler implements Runnable {
     private PrintWriter out;
     private BufferedReader in;
     private Player player;
+    private Boolean isCurrentActivePlayer = false;
 
     /**
      * Constructs a ClientHandler for managing client-server communication.
@@ -73,6 +74,7 @@ public class ClientHandler implements Runnable {
             return false; // Empty message, terminate connection
         }
 
+<<<<<<< HEAD
         String command = parts[0];
         switch (command) {
             case "MOVE":
@@ -90,6 +92,43 @@ public class ClientHandler implements Runnable {
             default:
                 System.err.println("Unknown command from client: " + command);
                 break;
+=======
+        try {
+            switch (parts[0]) {
+                case "MOVE":
+                    handleMoveCommand(parts);
+                    break;
+                case "FLAG":
+                    handleFlagCommand(parts);
+                    break;
+                case "READY":
+                    this.player.isReady();
+                    this.server.playerReadyCheckGameStatus(this.player);
+                    break;
+                case "GETCURRENTPLAYER":
+                    sendMessage("GETCURRENTPLAYER " + 
+                        String.valueOf(player.isReady()) + 
+                        " " +
+                        String.valueOf(player.getPlayerNumber()) +
+                        " " +
+                        String.valueOf(player.getPassword()));
+                    break;
+                case "IS_GAME_STARTED":
+                    sendMessage("IS_GAME_STARTED " + String.valueOf(server.getGameStarted()));
+                    break;
+                case "ENDTURN":
+                    server.switchTurns();
+                    break;
+                case "REQUEST_NEIGHBORING_MINES_COUNT":
+                    handleRequestNeighboringMinesCount(parts);
+                    break;
+                default:
+                    System.err.println("Received unknown command: " + parts[0]);
+                    break;
+            }
+        } catch (Exception e) {
+            System.err.println("Error handling command from client: " + e.getMessage());
+>>>>>>> 7b3d4b5 (working)
         }
         return true;
     }
@@ -156,5 +195,10 @@ public class ClientHandler implements Runnable {
         } catch (IOException e) {
             System.err.println("Error closing client connection: " + e.getMessage());
         }
+    }
+
+    public void setActiveStatus(Boolean status) {
+        sendMessage("ACTIVE_STATUS_UPDATE " + String.valueOf(status));
+        this.isCurrentActivePlayer = status;
     }
 }
