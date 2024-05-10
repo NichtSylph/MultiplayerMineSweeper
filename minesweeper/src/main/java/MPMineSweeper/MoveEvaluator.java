@@ -31,7 +31,6 @@ public class MoveEvaluator {
         }
 
         int neighboringMines = cell.getNeighboringMines();
-        player.incrementScore(neighboringMines);
         boolean allCleared = gameBoard.allNonMineCellsRevealed();
         if (allCleared) {
             gameBoard.setGameOver(true);
