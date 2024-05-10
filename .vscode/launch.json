@@ -1,0 +1,36 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Current File",
+            "request": "launch",
+            "mainClass": "${file}"
+        },
+        {
+            "type": "java",
+            "name": "EncryptionUtil",
+            "request": "launch",
+            "mainClass": "MPMineSweeper.EncryptionUtil",
+            "projectName": "minesweeper"
+        },
+        {
+            "type": "java",
+            "name": "GameClient",
+            "request": "launch",
+            "mainClass": "MPMineSweeper.GameClient",
+            "projectName": "minesweeper"
+        },
+        {
+            "type": "java",
+            "name": "GameServer",
+            "request": "launch",
+            "mainClass": "MPMineSweeper.GameServer",
+            "projectName": "minesweeper",
+            "args": ["26881", "abc"]
+        }
+    ]
+}
