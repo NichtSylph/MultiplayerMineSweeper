@@ -54,7 +54,7 @@ public class ClientHandler implements Runnable {
                     handleFlagCommand(parts);
                     break;
                 case "READY":
-                    this.player.isReady();
+                    this.player.setReady(true);
                     this.server.playerReadyCheckGameStatus(this.player);
                     break;
                 case "GETCURRENTPLAYER":
@@ -68,7 +68,7 @@ public class ClientHandler implements Runnable {
                 case "IS_GAME_STARTED":
                     sendMessage("IS_GAME_STARTED " + String.valueOf(server.getGameStarted()));
                     break;
-                case "ENDTURN":
+                case "END_TURN":
                     server.switchTurns();
                     break;
                 case "REQUEST_NEIGHBORING_MINES_COUNT":

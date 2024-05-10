@@ -80,6 +80,7 @@ public class CellButton extends JButton {
             cell.setRevealed(true);
             // Reveal the cell in the UI
             revealCell(cell.isMine(), cell.getNeighboringMines());
+            gameClient.endTurn();
         } else {
             JOptionPane.showMessageDialog(this, "Wait for your turn, Player " + currentPlayerNumber + "!",
                     "Turn Info", JOptionPane.INFORMATION_MESSAGE);

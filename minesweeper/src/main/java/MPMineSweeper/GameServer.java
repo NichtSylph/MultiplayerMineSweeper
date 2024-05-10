@@ -30,9 +30,9 @@ public class GameServer {
         this.port = port;
         this.password = password;
         clientHandlers = new ArrayList<>();
-        players = new ArrayList<>();
-        gameBoard = new GameBoard(WIDTH, HEIGHT, MINES, players.toArray(new Player[0]));
-        currentPlayerIndex = new AtomicInteger(0);
+        this.players = new ArrayList<>();
+        gameBoard = new GameBoard(WIDTH, HEIGHT, MINES, this.players.toArray(new Player[0]));
+        this.currentPlayerIndex = new AtomicInteger(0);
         readyPlayers = new AtomicInteger(0);
         gameStarted = false;
         isRunning = true;
@@ -48,10 +48,11 @@ public class GameServer {
             System.out.println("Server started on port " + port + ". Waiting for clients...");
 
             new Thread(() -> {
-                while (isRunning && players.size() < MAX_PLAYERS) {
+                while (isRunning && this.players.size() < MAX_PLAYERS) {
                     try {
                         Socket clientSocket = serverSocket.accept();
                         handleNewConnection(clientSocket);
+                        broadcastMessage("UPDATE_PLAYER_COUNT " + String.valueOf(this.players.size()));
                     } catch (IOException e) {
                         System.out.println("Error accepting client connection: " + e.getMessage());
                     }
@@ -65,21 +66,23 @@ public class GameServer {
     private void handleNewConnection(Socket clientSocket) throws IOException {
         BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+        ClientHandler clientHandler;
 
         String clientPassword = in.readLine(); // Receive password from client
-        if (players.size() < MAX_PLAYERS && this.password.equals(clientPassword)) {
+        if (this.players.size() < MAX_PLAYERS && this.password.equals(clientPassword)) {
             Player player = new Player(); // Create a new Player object
-            player.setPlayerNumber(players.size() + 1); // Set the player number
+            player.setPlayerNumber(this.players.size() + 1); // Set the player number
             player.setPassword(clientPassword); // Set the password
 
-            ClientHandler clientHandler = new ClientHandler(clientSocket, this, player);
+            clientHandler = new ClientHandler(clientSocket, this, player);
             new Thread(clientHandler).start();
             clientHandlers.add(clientHandler);
-            players.add(player);
+            this.players.add(player);
 
             out.println("PASSWORD CORRECT"); // Send response to client
             System.out.println("Client connected: " + clientSocket.getInetAddress().getHostAddress());
             // broadcastPlayerCount();
+
         } else {
             out.println("PASSWORD INCORRECT"); // Send response to client
             clientSocket.close();
@@ -105,10 +108,10 @@ public class GameServer {
     }
 
     public synchronized void addPlayer(Socket clientSocket, Player newPlayer) {
-        if (newPlayer.getPassword().equals(password) && players.size() < MAX_PLAYERS) {
+        if (newPlayer.getPassword().equals(password) && this.players.size() < MAX_PLAYERS) {
             ClientHandler clientHandler = new ClientHandler(clientSocket, this, newPlayer);
             clientHandlers.add(clientHandler);
-            players.add(newPlayer);
+            this.players.add(newPlayer);
             clientHandler.sendMessage("PLAYER_NUMBER " + newPlayer.getPlayerNumber());
             // broadcastPlayerCount();
         } else {
@@ -132,10 +135,10 @@ public class GameServer {
     public synchronized void playerReadyCheckGameStatus(Player player) {
         for (Player p : this.players) {
             if (p.getPlayerNumber() == player.getPlayerNumber()) {
-                this.players.get(this.players.indexOf(p)).isReady();
+                this.players.get(this.players.indexOf(p)).setReady(true);
             }
         }
-        if (!gameStarted && readyPlayers.incrementAndGet() == players.size()) {
+        if (!gameStarted && readyPlayers.incrementAndGet() == this.players.size()) {
             startGame();
         }        
     }
@@ -144,15 +147,9 @@ public class GameServer {
         if (!gameStarted) {
             gameStarted = true;
             gameBoard.startGame();
-            currentPlayerIndex.set(0);
             this.broadcastMessage("GAME_STARTED");
-            // KKM
-            this.clientHandlers.get(0).setActiveStatus(true);
+            this.clientHandlers.get(this.currentPlayerIndex.get()).setActiveStatus(true);
         }
-    }
-
-    private void broadcastTurnChange() {
-        broadcastMessage("TURN_CHANGED " + currentPlayerIndex.get());
     }
 
     private void broadcastMessage(String message) {
@@ -188,9 +185,24 @@ public class GameServer {
     }
 
     public void switchTurns() {
-        currentPlayerIndex.incrementAndGet();
-        currentPlayerIndex.set(currentPlayerIndex.get() % players.size());
-        broadcastTurnChange();
+        if (this.currentPlayerIndex.get() < (this.players.size() - 1)) {
+            this.currentPlayerIndex.set(this.currentPlayerIndex.incrementAndGet());
+        } else {
+            this.currentPlayerIndex.set(0);
+        }
+
+        System.out.println("KKM this.currentPlayerIndex.: " + this.currentPlayerIndex.get());
+        this.clientHandlers.forEach(client -> {
+            if (this.clientHandlers.indexOf(client) == this.currentPlayerIndex.get()) {
+                client.setActiveStatus(true);
+            } else {
+                client.setActiveStatus(false);
+            }
+        });
+    }
+
+    public Integer getPlayerCount() {
+        return this.players.size();
     }
 
     private void sendToPlayer(Player player, String message) {
@@ -218,7 +230,7 @@ public class GameServer {
     }
 
     public void handlePlayerQuit(Player player) {
-        players.remove(player);
+        this.players.remove(player);
         clientHandlers.removeIf(handler -> handler.getPlayer().equals(player));
         // broadcastPlayerCount();
     }
@@ -235,7 +247,7 @@ public class GameServer {
     }
 
     public boolean isPlayerTurn(Player player) {
-        return player.equals(players.get(currentPlayerIndex.get()));
+        return player.equals(this.players.get(currentPlayerIndex.get()));
     }
 
     public static void main(String[] args) {

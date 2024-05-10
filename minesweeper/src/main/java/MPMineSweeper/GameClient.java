@@ -114,17 +114,14 @@ public class GameClient extends Thread {
     
     private void openGameWindow() {
         this.getPlayerFromServer();
+        System.out.println("KKM: new window");
         this.gameWindow = new GameWindow(this);
         this.gameWindow.setVisible(true);
         joinFrame.dispose(); // Dispose the join frame after successful connection
     }
 
     public boolean isGameStarted() {
-        if (!gameStarted) {
-            send("IS_GAME_STARTED");
-        }
-
-        return gameStarted;
+        return this.gameStarted;
     }
 
     public Integer getPlayerNumber() {
@@ -133,6 +130,7 @@ public class GameClient extends Thread {
 
     public void endTurn() {
         send("END_TURN");
+        this.isCurrentActivePlayer = false;
     }
 
     public Boolean checkCurrentActivePlayer() {
@@ -143,7 +141,7 @@ public class GameClient extends Thread {
         if (out != null) {
             out.println("READY");
             if (this.player != null) {
-                this.player.isReady();
+                this.player.setReady(true);
             }
         }
     }
@@ -160,22 +158,23 @@ public class GameClient extends Thread {
         }
     }
 
+    public Boolean isPlayerReady() {
+        return this.player.isReady();
+    }
+
     private Boolean processServerMessage(String inputLine) {
-        System.out.print("KKM: " + inputLine);
+        // System.out.print("KKM: " + inputLine);
         if (inputLine != null) {
             String[] parts = inputLine.split(" ");
 
-            System.out.print("KKM parts: " + parts);
-            System.out.print("KKM parts[0]: " + parts[0]);
+            // System.out.print("KKM parts: " + parts);
+            // System.out.print("KKM parts[0]: " + parts[0]);
             if (parts.length > 0) {
                 switch (parts[0]) {
                     case "PASSWORD":
                         if (parts.length == 2) {
                             SwingUtilities.invokeLater(() -> {
-                                System.out.print("KKM parts[1]: " + parts[1]);
-                                System.out.print("KKM parts[1]: INVOKELATER");
                                 if (parts[1].equalsIgnoreCase("CORRECT")) {
-                                    System.out.print("KKM parts[1]: CORRECT <<<<<<");
                                     this.openGameWindow();
                                 } else if (parts[1].equalsIgnoreCase("INCORRECT")) {
                                     JOptionPane.showMessageDialog(joinFrame, "Password incorrect. Please try again.", "Login Failed", JOptionPane.ERROR_MESSAGE);
@@ -190,8 +189,6 @@ public class GameClient extends Thread {
                             this.player.setReady(Boolean.valueOf(parts[1]));
                             this.player.setPlayerNumber(Integer.valueOf(parts[2]));
                             this.player.setPassword(parts[3]);
-
-                            System.out.println("KKM: currentplayer: " + this.player.toString());
                         }
                         break;
                     case "GAME_STARTED":
@@ -200,29 +197,25 @@ public class GameClient extends Thread {
                             this.gameWindow.notifyGameStarted();
                             this.gameWindow.getReadyButton().setEnabled(false); // Disable the Ready button when the game starts
                         });
-
-                        // if (!this.gameStarted) {
-                        //     SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(gameWindow,
-                        //         "Waiting for other players to be ready.", "Wait",
-                        //         JOptionPane.INFORMATION_MESSAGE));
-                        // } else {
-                        //     SwingUtilities.invokeLater(() -> {
-                        //         gameWindow.notifyGameStarted();
-                        //         gameWindow.getReadyButton().setEnabled(false); // Disable the Ready button when the game starts
-                        //     });
-                        // }
-                        break;
-                    case "IS_GAME_STARTED":
-                        System.out.println("KKM in game started: <<<<<");
-                        if (parts.length == 2) {
-                            this.gameStarted = Boolean.valueOf(parts[1]);
-                            System.out.println("KKM in game started: " + String.valueOf(gameStarted));
-                        }
                         break;
                     case "ACTIVE_STATUS_UPDATE":
                         if (parts.length == 2) {
+                            // if (this.isCurrentActivePlayer && !Boolean.valueOf(parts[1])) {
+                            //     this.gameWindow.updateTurnStatus(false);
+                            // }
                             this.isCurrentActivePlayer = Boolean.valueOf(parts[1]);
+                            if (this.isCurrentActivePlayer) {
+                                this.gameWindow.updateTurnStatus(true);
+                            }
                         } 
+                        break;
+                    case "UPDATE_PLAYER_COUNT":
+                        if (parts.length == 2) {
+                            SwingUtilities.invokeLater(() -> {
+                                System.out.println("KKM Gamewindow: " + this.gameWindow);
+                                this.gameWindow.updatePlayerCount(Integer.valueOf(parts[1]));
+                            });
+                        }
                         break;
                     default:
                         System.err.println("Received unknown command: " + parts[0]);

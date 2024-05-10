@@ -9,6 +9,7 @@ public class GameWindow extends JFrame {
     private final int WIDTH = 16;
     private final int HEIGHT = 16;
     private GameClient gameClient;
+    private JPanel controlPanel;
     private JButton readyButton;
     private JLabel playerCountLabel;
     private JLabel scoreLabel;
@@ -38,21 +39,21 @@ public class GameWindow extends JFrame {
         }
         add(gamePanel, BorderLayout.CENTER);
 
-        JPanel controlPanel = new JPanel();
-        playerCountLabel = new JLabel("Players Connected: 0");
-        controlPanel.add(playerCountLabel);
+        this.controlPanel = new JPanel();
+        this.playerCountLabel = new JLabel("Players Connected: 0");
+        this.controlPanel.add(this.playerCountLabel);
 
-        scoreLabel = new JLabel("Score: " + gameClient.getScore()); // Dynamically update the score
-        controlPanel.add(scoreLabel);
+        this.scoreLabel = new JLabel("Score: " + gameClient.getScore()); // Dynamically update the score
+        this.controlPanel.add(this.scoreLabel);
 
-        readyButton = new JButton("Ready");
-        readyButton.addActionListener(e -> {
-            gameClient.sendReady();
-            readyButton.setEnabled(false);
+        this.readyButton = new JButton("Ready");
+        this.readyButton.addActionListener(e -> {
+            this.gameClient.sendReady();
+            this.readyButton.setEnabled(false);
         });
-        controlPanel.add(readyButton);
+        this.controlPanel.add(this.readyButton);
 
-        add(controlPanel, BorderLayout.SOUTH);
+        add(this.controlPanel, BorderLayout.SOUTH);
         setSize(800, 800);
         setLocationRelativeTo(null); // Center the window
         setVisible(true);
@@ -83,8 +84,50 @@ public class GameWindow extends JFrame {
         });
     }
 
-    public void updatePlayerCount(int count) {
-        SwingUtilities.invokeLater(() -> playerCountLabel.setText("Players Connected: " + count));
+    public void updatePlayerCount(Integer count) {
+        System.out.println("KKM in panel update: " + count);
+        this.playerCountLabel = new JLabel("Players Connected: " + count);
+        System.out.println("KKM in panel this.playerCountLabel: " + this.playerCountLabel);
+        this.controlPanel.remove(0);
+        this.controlPanel.add(this.playerCountLabel, 0);
+
+        SwingUtilities.invokeLater(() -> {
+            this.controlPanel.validate();
+            this.controlPanel.repaint();
+        });
+
+        // Boolean existingPanel = false;
+        // if (this.controlPanel != null) {
+        //     System.out.println("KKM remove panel: " + count);
+        //     this.controlPanel.removeAll();
+        //     existingPanel = true;
+        // }
+        // this.controlPanel = (this.controlPanel == null) ? new JPanel() : this.controlPanel;
+        // this.playerCountLabel = new JLabel("Players Connected: " + count);
+        // this.controlPanel.add(playerCountLabel);
+
+        // this.scoreLabel = (this.scoreLabel == null) ? new JLabel("Score: " + gameClient.getScore()) : this.scoreLabel;
+        // this.controlPanel.add(this.scoreLabel);
+        // this.readyButton = (this.readyButton == null) ? new JButton("Ready") : this.readyButton;
+
+        // if (this.gameClient.isPlayerReady()) {
+        //     this.readyButton.setEnabled(false);
+        //     this.controlPanel.add(this.readyButton);
+        // } else {
+        //     this.readyButton.addActionListener(e -> {
+        //         this.gameClient.sendReady();
+        //         this.readyButton.setEnabled(false);
+        //     });
+        //     this.controlPanel.add(this.readyButton);
+        // }
+
+        // System.out.println("KKM in panel update");
+
+        // if (!existingPanel) {
+        //     add(this.controlPanel, BorderLayout.SOUTH);
+        // } else {
+        //     this.controlPanel.repaint();
+        // }
     }
 
     public void updateScore(int newScore) {
@@ -99,9 +142,11 @@ public class GameWindow extends JFrame {
     }
 
     public void updateTurnStatus(boolean isMyTurn) {
-        enableCellButtons(isMyTurn);
+        this.enableCellButtons(isMyTurn);
         if (!isMyTurn) {
             JOptionPane.showMessageDialog(this, "Wait for your turn.", "Turn Info", JOptionPane.INFORMATION_MESSAGE);
+        } else {
+            this.showMyTurnMessage();
         }
     }
 
@@ -113,6 +158,10 @@ public class GameWindow extends JFrame {
     public void notifyGameStarted() {
         JOptionPane.showMessageDialog(this, "The game has started!", "Game Start", JOptionPane.INFORMATION_MESSAGE);
         readyButton.setEnabled(false); // Disable the Ready button when the game starts
+    }
+
+    public void showMyTurnMessage() {
+        JOptionPane.showMessageDialog(this, "Its your turn...", "Turn Active", JOptionPane.INFORMATION_MESSAGE);
     }
 
     public void notifyServerClosing() {
@@ -129,6 +178,6 @@ public class GameWindow extends JFrame {
     }
 
     public JButton getReadyButton() {
-        return readyButton;
+        return this.readyButton;
     }
 }
