@@ -3,72 +3,84 @@ package MPMineSweeper;
 public class MoveEvaluator {
     private GameBoard gameBoard;
     private Player[] players;
-    private int playerIndex;
+    private int playerIndex; // Index to keep track of whose turn it is
 
+    /**
+     * Constructor for MoveEvaluator.
+     *
+     * @param gameBoard The game board.
+     * @param players The array of players.
+     */
     public MoveEvaluator(GameBoard gameBoard, Player[] players) {
         this.gameBoard = gameBoard;
         this.players = players;
-        this.playerIndex = 0;
+        this.playerIndex = 0; // Start with the first player
     }
 
+    /**
+     * Evaluates a move made by a player at the given coordinates.
+     *
+     * @param x The x-coordinate of the move.
+     * @param y The y-coordinate of the move.
+     * @param player The player making the move.
+     * @return The result of the move.
+     */
     public MoveResult evaluateMove(int x, int y, Player player) {
-        // Ensure the move is being made by the current player
-        if (!player.equals(players[playerIndex])) {
-            return new MoveResult(false, false, player);
+        // Check if the game has started and if it's the player's turn
+        if (!gameBoard.isGameStarted() || !player.equals(players[playerIndex])) {
+            return new MoveResult(false, false, 0, player); // Game not started or not the player's turn
         }
 
         Cell cell = gameBoard.getCell(x, y);
+
         if (cell == null || cell.isRevealed()) {
-            return new MoveResult(false, false, player);
+            return new MoveResult(false, false, 0, player); // Invalid move
         }
 
-        // Reveal the cell and check if it's a mine
-        boolean isMine = gameBoard.revealCell(x, y);
-        if (isMine) {
-            // gameBoard.setGameOver(true); // This line is removed
-        } else {
-            // If the cell is not a mine, recursively reveal adjacent cells if it has zero
-            // neighboring mines
-            if (cell.getNeighboringMines() == 0) {
-                revealAdjacentCells(x, y);
-            }
+        cell.setRevealed(true);
+        if (cell.isMine()) {
+            // Game over scenario
+            gameBoard.setGameOver(true); // Set the game over state
+            return new MoveResult(true, true, 0, player); // Hit a mine
         }
 
-        return new MoveResult(true, isMine, player);
+        int neighboringMines = cell.getNeighboringMines();
+        // Update the score based on your scoring rules.
+        player.incrementScore(neighboringMines); // Increment score based on neighboring mines
+
+        switchPlayer(); // Switch to the next player for the next turn
+
+        return new MoveResult(true, false, neighboringMines, player); // Safe move
     }
 
-    private void revealAdjacentCells(int x, int y) {
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dy = -1; dy <= 1; dy++) {
-                if (dx != 0 || dy != 0) {
-                    int newX = x + dx;
-                    int newY = y + dy;
-                    if (isValidCell(newX, newY)) {
-                        Cell adjacentCell = gameBoard.getCell(newX, newY);
-                        if (!adjacentCell.isRevealed() && !adjacentCell.isMine()) {
-                            adjacentCell.setRevealed(true);
-                            if (adjacentCell.getNeighboringMines() == 0) {
-                                revealAdjacentCells(newX, newY);
-                            }
-                        }
-                    }
-                }
-            }
-        }
+    /**
+     * Switches the turn to the next player.
+     */
+    private void switchPlayer() {
+        playerIndex = (playerIndex + 1) % players.length;
     }
 
-    private boolean isValidCell(int x, int y) {
-        return x >= 0 && y >= 0 && x < gameBoard.getWidth() && y < gameBoard.getHeight();
-    }
-
+    /**
+     * Inner class to represent the result of a move.
+     */
     public static class MoveResult {
         private boolean isValid;
         private boolean isMine;
+        private int neighboringMines;
         private Player player;
 
-        public MoveResult(boolean isValid, boolean isMine, Player player) {
+        /**
+         * Constructor for MoveResult.
+         *
+         * @param isValid Indicates if the move is valid.
+         * @param isMine Indicates if the move hit a mine.
+         * @param neighboringMines The number of neighboring mines.
+         * @param player The player who made the move.
+         */
+        public MoveResult(boolean isValid, boolean isMine, int neighboringMines, Player player) {
             this.isValid = isValid;
             this.isMine = isMine;
+            this.neighboringMines = neighboringMines;
             this.player = player;
         }
 
@@ -78,6 +90,10 @@ public class MoveEvaluator {
 
         public boolean isMine() {
             return isMine;
+        }
+
+        public int getNeighboringMines() {
+            return neighboringMines;
         }
 
         public Player getPlayer() {

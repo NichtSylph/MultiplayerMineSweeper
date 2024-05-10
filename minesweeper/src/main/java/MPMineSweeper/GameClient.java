@@ -1,339 +1,316 @@
 package MPMineSweeper;
 
 import javax.swing.*;
-import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.InetSocketAddress;
+import java.io.*;
 import java.net.Socket;
-import java.net.SocketTimeoutException;
 
 public class GameClient {
-    private JFrame joinFrame;
-    private JTextField ipTextField, portTextField, passwordTextField;
-    private GameWindow gameWindow;
-    private PrintWriter out;
-    private BufferedReader in;
+    private String serverAddress;
+    private int serverPort;
     private Socket socket;
-    private Player player;
-    private int score = 0;
-    private boolean gameStarted;
-    private boolean isCurrentActivePlayer;
+    private BufferedReader in;
+    private PrintWriter out;
+    private GameWindow gameWindow;
+    private int currentPlayerNumber;
+    private int playerNumber;
+    private JFrame joinFrame;
+    private boolean gameStarted = false;
 
-    public GameClient() {
-        this.player = new Player();
-        createJoinFrame();
+    /**
+     * Constructor for GameClient. Sets up the GUI for joining the game lobby.
+     */
+    public GameClient(String serverAddress, int serverPort) {
+        this.serverAddress = serverAddress;
+        this.serverPort = serverPort;
+        this.joinFrame = new JFrame(); // initialize joinFrame
+        connectToServer();
     }
 
-    private void createJoinFrame() {
-        joinFrame = new JFrame("Join Game Lobby");
-        joinFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        joinFrame.setSize(400, 200);
-        joinFrame.setLayout(new BorderLayout());
-
-        JPanel inputPanel = new JPanel(new GridLayout(3, 2));
-        joinFrame.add(inputPanel, BorderLayout.CENTER);
-
-        inputPanel.add(new JLabel("Server IP:"));
-        ipTextField = new JTextField();
-        inputPanel.add(ipTextField);
-
-        inputPanel.add(new JLabel("Port:"));
-        portTextField = new JTextField();
-        inputPanel.add(portTextField);
-
-        inputPanel.add(new JLabel("Password:"));
-        passwordTextField = new JTextField();
-        inputPanel.add(passwordTextField);
-
-        JPanel buttonPanel = new JPanel();
-        JButton joinButton = new JButton("Join");
-        joinButton.addActionListener(this::handleJoinAction);
-        buttonPanel.add(joinButton);
-
-        JButton cancelButton = new JButton("Cancel");
-        cancelButton.addActionListener(e -> System.exit(0));
-        buttonPanel.add(cancelButton);
-
-        joinFrame.add(buttonPanel, BorderLayout.SOUTH);
-
-        joinFrame.setLocationRelativeTo(null);
-        joinFrame.setVisible(true);
-    }
-
-    private void handleJoinAction(ActionEvent e) {
-        JButton joinButton = (JButton) e.getSource();
-        joinButton.setEnabled(false); // Disable the join button to prevent multiple clicks immediately
-    
-        new Thread(() -> {
-            try {
-                String serverIP = ipTextField.getText().trim();
-                int serverPort = Integer.parseInt(portTextField.getText().trim());
-                String password = passwordTextField.getText().trim();
-    
-                System.out.println("Attempting to connect to server at IP: " + serverIP + ", port: " + serverPort);
-    
-                socket = new Socket();
-                socket.connect(new InetSocketAddress(serverIP, serverPort), 5000); // 5000 ms timeout
-                out = new PrintWriter(socket.getOutputStream(), true);
-                in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-    
-                // Send password to server and flush to ensure it's sent immediately
-                System.out.println("Sending password to server: " + password);
-                out.println(password);
-                out.flush();
-    
-                // Read response from server
-                String response = in.readLine();
-                System.out.println("Received response from server: " + response);
-    
-                SwingUtilities.invokeLater(() -> {
-                    if ("Password incorrect".equals(response)) {
-                        JOptionPane.showMessageDialog(joinFrame, "Password incorrect. Please try again.",
-                                "Login Failed", JOptionPane.ERROR_MESSAGE);
-                    } else if ("Password correct".equals(response)) {
-                        openGameWindow(); // Opens the game window if the password is correct
-                    } else if (response.startsWith("Game Full")) {
-                        JOptionPane.showMessageDialog(joinFrame, "The game is full. Please try again later.",
-                                "Game Full", JOptionPane.ERROR_MESSAGE);
-                    } else {
-                        JOptionPane.showMessageDialog(joinFrame, "Unexpected response from server.", "Error",
-                                JOptionPane.ERROR_MESSAGE);
-                    }
-                    joinButton.setEnabled(true); // Re-enable the join button irrespective of the server response
-                });
-            } catch (SocketTimeoutException ex) {
-                System.out.println("Connection timed out.");
-                SwingUtilities.invokeLater(() -> {
-                    JOptionPane.showMessageDialog(joinFrame,
-                            "Connection timed out. Please check the IP and port and try again.",
-                            "Connection Error", JOptionPane.ERROR_MESSAGE);
-                    joinButton.setEnabled(true);
-                });
-            } catch (IOException ex) {
-                System.out.println("Unable to connect to server.");
-                SwingUtilities.invokeLater(() -> {
-                    JOptionPane.showMessageDialog(joinFrame,
-                            "Unable to connect to server. Please check your network connection and server status.",
-                            "Connection Error", JOptionPane.ERROR_MESSAGE);
-                    joinButton.setEnabled(true);
-                });
-            } catch (NumberFormatException ex) {
-                System.out.println("Invalid port number entered.");
-                SwingUtilities.invokeLater(() -> {
-                    JOptionPane.showMessageDialog(joinFrame, "Please enter a valid port number.",
-                            "Invalid Input", JOptionPane.ERROR_MESSAGE);
-                    joinButton.setEnabled(true);
-                });
-            }
-        }).start();
-    }
-    
-    private void openGameWindow() {
-        gameWindow = new GameWindow(this);
-        gameWindow.setVisible(true);
-        joinFrame.dispose(); // Dispose the join frame after successful connection
-    }
-
-    public Player getCurrentPlayer() {
-        return isCurrentActivePlayer ? player : null;
-    }
-
-    public Integer getPlayerNumber() {
-        Player currentPlayer = getCurrentPlayer();
-        if (currentPlayer != null) {
-            return currentPlayer.getPlayerNumber();
-        } else {
-            send("GET_CURRENT_PLAYER_NUMBER");
-            try {
-                processServerMessage(in.readLine());
-            } catch (IOException e) {
-                System.err.println("Error handling command from client: " + e.getMessage());
-            }
-            return currentPlayer != null ? currentPlayer.getPlayerNumber() : null;
-        }
-    }
-
-    private void handleDisconnection() {
-        SwingUtilities.invokeLater(() -> {
-            JOptionPane.showMessageDialog(gameWindow,
-                    "Player " + (player.getPlayerNumber() + 1) + " has quit the game.",
-                    "Player Disconnected", JOptionPane.INFORMATION_MESSAGE);
-        });
-    }
-
-    public synchronized boolean isGameStarted() {
-        send("IS_GAME_STARTED");
-    
+    /**
+     * Establishes connection to the Minesweeper game server.
+     */
+    public void connectToServer() {
         try {
-            String response = in.readLine();
-            processServerMessage(response);
+            socket = new Socket(serverAddress, serverPort);
+            out = new PrintWriter(socket.getOutputStream(), true);
+            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+            new Thread(new ServerListener()).start();
+            System.out.println("Connected to server at " + serverAddress + ":" + serverPort);
+
+            gameWindow = new GameWindow(this);
+            gameWindow.setVisible(true);
+            joinFrame.setVisible(false);
         } catch (IOException e) {
-            System.err.println("Error handling command from client: " + e.getMessage());
-        }
-    
-        return gameStarted;
-    }
-
-    public void endTurn() {
-        send("END_TURN");
-    }
-
-    public Boolean checkCurrentActivePlayer() {
-        send("IS_CURRENT_ACTIVE_PLAYER");
-
-        try {
-            processServerMessage(in.readLine());
-        } catch (IOException e) {
-            System.err.println("Error handling command from client: " + e.getMessage());
-        }
-
-        return isCurrentActivePlayer;
-    }
-
-    public void sendReady() {
-        if (out != null) {
-            out.println("READY");
+            System.err.println("Error connecting to server: " + e.getMessage());
+            System.exit(1);
         }
     }
 
+    /**
+     * Sends a message to the server.
+     *
+     * @param message The message to be sent.
+     */
+    public void sendMessage(String message) {
+        out.println(message);
+    }
+
+    /**
+     * Sends a signal to the server to start the game.
+     */
+    public void sendStartGame() {
+        sendMessage("START_GAME");
+    }
+
+    /**
+     * Sends the player's move to the server.
+     *
+     * @param x The x-coordinate of the move.
+     * @param y The y-coordinate of the move.
+     */
     public void sendPlayerMove(int x, int y) {
-        if (out != null) {
-            System.out.println("Sending MOVE command to server with coordinates: " + x + ", " + y);
-            out.println("MOVE " + x + " " + y);
+        if (!gameStarted) {
+            System.out.println("The game has not started yet.");
+            return;
         }
+        sendMessage("MOVE " + x + " " + y + " " + playerNumber);
     }
 
+    /**
+     * Sends a change of flag status for a cell to the server.
+     *
+     * @param x         The x-coordinate of the cell.
+     * @param y         The y-coordinate of the cell.
+     * @param isFlagged The new flag status.
+     */
     public void sendFlagChange(int x, int y, boolean isFlagged) {
-        if (out != null) {
-            System.out.println("Sending FLAG command to server with coordinates: " + x + ", " + y + " and flag status: "
-                    + isFlagged);
-            out.println("FLAG " + x + " " + y + " " + isFlagged);
+        if (!gameStarted) {
+            JOptionPane.showMessageDialog(null, "The game has not started yet. You cannot flag cells.", "Notification",
+                    JOptionPane.INFORMATION_MESSAGE);
+            return;
         }
+        String flagState = isFlagged ? "1" : "0";
+        sendMessage("FLAG " + x + " " + y + " " + flagState);
     }
 
-    private void processServerMessage(String inputLine) {
-        if (inputLine != null) {
-            System.out.println("Received message from server: " + inputLine);
-            String[] parts = inputLine.split(" ");
-            if (parts.length > 0) {
-                switch (parts[0]) {
-                    case "WAITING_FOR_PLAYERS":
-                        if (parts.length == 3) {
-                            SwingUtilities.invokeLater(() -> {
-                                JOptionPane.showMessageDialog(gameWindow,
-                                        "Waiting for more players to be ready... (" + parts[1] + "/" + parts[2] + ")",
-                                        "Waiting", JOptionPane.INFORMATION_MESSAGE);
-                            });
-                        }
-                        break;
-                    case "CURRENT_PLAYER_NUMBER":
-                        if (parts.length == 2) {
-                            int num = Integer.parseInt(parts[1]);
-                            if (player != null) {
-                                player.setPlayerNumber(num);
-                                SwingUtilities.invokeLater(() -> {
-                                    gameWindow.setPlayerNumber(num);  // Make sure GameWindow has a method to update this
-                                });
-                            }
-                        }
-                        break;
-                    case "GAME_STARTED":
-                        SwingUtilities.invokeLater(() -> {
-                            gameStarted = true;
-                            JOptionPane.showMessageDialog(gameWindow, "Game has started!", "Game Started",
-                                    JOptionPane.INFORMATION_MESSAGE);
-                            gameWindow.notifyGameStarted(); // Ensures all UI elements are updated accordingly
-                        });
-                        break;
-                    case "IS_GAME_STARTED":
-                        if (parts.length == 2) {
-                            gameStarted = Boolean.parseBoolean(parts[1]);
-                            if (gameStarted) {
-                                SwingUtilities.invokeLater(() -> {
-                                    JOptionPane.showMessageDialog(gameWindow, "The game is already in progress.",
-                                            "Info", JOptionPane.INFORMATION_MESSAGE);
-                                });
-                            }
-                        }
-                        break;
-                    case "IS_CURRENT_ACTIVE_PLAYER":
-                        if (parts.length == 2) {
-                            isCurrentActivePlayer = Boolean.parseBoolean(parts[1]);
-                            SwingUtilities.invokeLater(() -> {
-                                gameWindow.updateTurnStatus(isCurrentActivePlayer); // Make sure GameWindow handles this
-                            });
-                        }
-                        break;
-                    case "PLAYERS_CONNECTED":
-                        if (parts.length > 1) {
-                            int count = Integer.parseInt(parts[1]);
-                            SwingUtilities.invokeLater(() -> {
-                                gameWindow.updatePlayerCount(count);
-                            });
-                        }
-                        break;
-                    case "DISCONNECT":
-                        handleDisconnection();
-                        break;
-                    case "TURN_CHANGED":
-                        int currentPlayerNumber = Integer.parseInt(parts[1]);
-                        handleTurnChange(currentPlayerNumber);
-                        break;
-                    case "SCORE_UPDATE":
-                        int newScore = Integer.parseInt(parts[1]);
-                        gameWindow.updateScore(newScore);
-                        break;
-                    case "CELL_UPDATE":
-                        int x = Integer.parseInt(parts[1]);
-                        int y = Integer.parseInt(parts[2]);
-                        boolean isRevealed = Boolean.parseBoolean(parts[3]);
-                        gameWindow.updateCellState(x, y, isRevealed);
-                        break;
-                    case "FLAG_UPDATE":
-                        x = Integer.parseInt(parts[1]);
-                        y = Integer.parseInt(parts[2]);
-                        boolean isFlagged = Boolean.parseBoolean(parts[3]);
-                        gameWindow.updateFlagState(x, y, isFlagged);
-                        break;
-                    default:
-                        System.err.println("Received unknown command: " + parts[0]);
-                        break;
+    /**
+     * Notifies the server that the player is ready to start the game.
+     */
+    public void sendReady() {
+        sendMessage("READY " + playerNumber);
+    }
+
+    /**
+     * Requests the current state of a specific cell from the server.
+     *
+     * @param x The x-coordinate of the cell.
+     * @param y The y-coordinate of the cell.
+     */
+    public void requestCellState(int x, int y) {
+        sendMessage("REQUEST_CELL_STATE " + x + " " + y);
+    }
+
+    /**
+     * Gets the number representing the current player.
+     *
+     * @return The number of the current player.
+     */
+    public int getCurrentPlayerNumber() {
+        return currentPlayerNumber;
+    }
+
+    /**
+     * Gets the player number assigned to this client.
+     *
+     * @return The player number.
+     */
+    public int getPlayerNumber() {
+        return playerNumber;
+    }
+
+    /**
+     * Inner class to listen for messages from the server.
+     */
+    private class ServerListener implements Runnable {
+        public void run() {
+            try {
+                String fromServer;
+                while ((fromServer = in.readLine()) != null) {
+                    processServerMessage(fromServer);
                 }
+            } catch (IOException e) {
+                System.err.println("Error reading from server: " + e.getMessage());
+            } finally {
+                closeConnection();
             }
         }
     }
-    
 
-    public void send(String message) {
-        if (out != null) {
-            System.out.println("Sending message to server: " + message);
-            out.println(message);
+    /**
+     * Processes incoming messages from the server.
+     *
+     * @param message The message received from the server.
+     */
+    private void processServerMessage(String message) {
+        String[] parts = message.split(" ");
+        System.out.println("Received message: " + message);
+        try {
+            switch (parts[0]) {
+                case "PLAYERS_CONNECTED":
+                    int playerCount = Integer.parseInt(parts[1]);
+                    if (gameWindow != null) {
+                        SwingUtilities.invokeLater(() -> gameWindow.updatePlayerCount(playerCount));
+                    }
+                    break;
+                case "GAME_STATE":
+                    handleGameState(parts[1]);
+                    break;
+                case "UPDATE":
+                    parseGameStateAndUpdateBoard(message.substring(7));
+                    break;
+                case "GAMEOVER":
+                    handleGameOverMessage(parts);
+                    break;
+                case "TURN_CHANGED":
+                    if (parts.length > 1 && isNumeric(parts[1])) {
+                        currentPlayerNumber = Integer.parseInt(parts[1]);
+                        SwingUtilities
+                                .invokeLater(() -> gameWindow.handleTurnChange(String.valueOf(currentPlayerNumber)));
+                    }
+                    break;
+                case "PLAYER_NUMBER":
+                    if (parts.length > 1 && isNumeric(parts[1])) {
+                        playerNumber = Integer.parseInt(parts[1]);
+                        SwingUtilities.invokeLater(() -> gameWindow.updatePlayerNumber(playerNumber));
+                    }
+                    break;
+                case "CELL_STATE":
+                    processCellStateResponse(parts);
+                    break;
+                default:
+                    System.out.println("Unknown server message: " + message);
+                    break;
+            }
+        } catch (NumberFormatException e) {
+            System.err.println("Error parsing server message: " + e.getMessage());
         }
     }
 
-    private void handleTurnChange(int currentPlayerNumber) {
-        boolean isCurrentTurn = this.player.getPlayerNumber() == currentPlayerNumber;
-        SwingUtilities.invokeLater(() -> gameWindow.handleTurnChange(currentPlayerNumber));
-        this.isCurrentActivePlayer = isCurrentTurn;
+    /**
+     * Handles changes in the game state as reported by the server.
+     *
+     * @param gameState The current state of the game.
+     */
+    private void handleGameState(String gameState) {
+        switch (gameState) {
+            case "STARTED":
+                gameStarted = true;
+                gameWindow.updateGameState("STARTED");
+                break;
+            case "OVER":
+                gameStarted = false;
+                gameWindow.updateGameState("OVER");
+                break;
+            default:
+                System.out.println("Unknown game state: " + gameState);
+                break;
+        }
     }
 
-    public void incrementScore(int increment) {
-        score += increment;
+    /**
+     * Checks if a string is numeric.
+     *
+     * @param str The string to check.
+     * @return true if the string is numeric, false otherwise.
+     */
+    private boolean isNumeric(String str) {
+        try {
+            Integer.parseInt(str);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
-    public void decrementScore(int decrement) {
-        score -= decrement;
+    /**
+     * Handles the game over message from the server.
+     *
+     * @param parts The message parts received from the server.
+     */
+    private void handleGameOverMessage(String[] parts) {
+        gameWindow.displayGameOver();
     }
 
-    public int getScore() {
-        return score;
+    /**
+     * Processes and updates the cell state based on the server's response.
+     *
+     * @param parts The message parts received from the server.
+     */
+    private void processCellStateResponse(String[] parts) {
+        int x = Integer.parseInt(parts[1]);
+        int y = Integer.parseInt(parts[2]);
+        int state = Integer.parseInt(parts[3]);
+        int minesCount = parts.length > 4 ? Integer.parseInt(parts[4]) : 0; // Assuming server sends mine counts
+        SwingUtilities.invokeLater(() -> gameWindow.updateCell(x, y, state, minesCount));
     }
 
+    /**
+     * Parses the game state update from the server and updates the board
+     * accordingly.
+     *
+     * @param gameState The updated game state from the server.
+     */
+    private void parseGameStateAndUpdateBoard(String gameState) {
+        String[] updates = gameState.split(";");
+        for (String update : updates) {
+            String[] cellData = update.split(",");
+            if (cellData.length == 4) { // Expecting four parts: x, y, state, minesCount
+                int x = Integer.parseInt(cellData[0]);
+                int y = Integer.parseInt(cellData[1]);
+                int state = Integer.parseInt(cellData[2]);
+                int minesCount = Integer.parseInt(cellData[3]); // Get the count of neighboring mines
+                SwingUtilities.invokeLater(() -> gameWindow.updateCell(x, y, state, minesCount));
+            }
+        }
+    }
+
+    /**
+     * Closes the network connection with the server.
+     */
+    public void closeConnection() {
+        try {
+            if (in != null)
+                in.close();
+            if (out != null)
+                out.close();
+            if (socket != null)
+                socket.close();
+        } catch (IOException e) {
+            System.err.println("Error closing the connection: " + e.getMessage());
+        }
+    }
+
+    /**
+     * The main method to start the GameClient.
+     */
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(GameClient::new);
+        if (args.length != 2) {
+            System.out.println("Usage: java GameClient <server address> <server port>");
+            System.exit(1);
+        }
+
+        String serverAddress = args[0];
+        int serverPort;
+
+        try {
+            serverPort = Integer.parseInt(args[1]);
+        } catch (NumberFormatException e) {
+            System.out.println("Error: Invalid server port number.");
+            System.exit(1);
+            return;
+        }
+
+        new GameClient(serverAddress, serverPort);
     }
 }
